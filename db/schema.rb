@@ -10,9 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_23_154218) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_23_191057) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "team_memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "preferred_position"
+    t.string "role"
+    t.string "status"
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["team_id"], name: "index_team_memberships_on_team_id"
+    t.index ["user_id"], name: "index_team_memberships_on_user_id"
+  end
 
   create_table "teams", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -20,12 +32,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_23_154218) do
     t.string "invite_code"
     t.string "name"
     t.datetime "updated_at", null: false
+    t.index ["invite_code"], name: "index_teams_on_invite_code", unique: true
   end
 
   create_table "users", force: :cascade do |t|
+    t.string "account_type"
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
+    t.string "manager_verification_status"
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
@@ -33,4 +48,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_23_154218) do
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
+
+  add_foreign_key "team_memberships", "teams"
+  add_foreign_key "team_memberships", "users"
 end

@@ -8,7 +8,7 @@ before_validation :set_manager_verification_status, on: :create
   has_many :team_memberships, dependent: :destroy
   has_many :teams, through: :team_memberships
 
-  validates :name, :account_type, presence: true
+  validates :first_name, :last_name, :account_type, presence: true
   validates :account_type, inclusion: { in: %w[player manager] }
 
   validates :manager_verification_status, presence: true, inclusion: { in: %w[pending approved rejected]},  if: :manager?
@@ -19,8 +19,8 @@ before_validation :set_manager_verification_status, on: :create
 
   private
 
-def set_manager_verification_status
-  self.manager_verification_status = "pending" if manager?
-end
+  def set_manager_verification_status
+    self.manager_verification_status = "pending" if manager?
+  end
 
 end

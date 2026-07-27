@@ -5,6 +5,7 @@ class TeamsController < ApplicationController
   before_action :require_team_manager!, only: [:update, :destroy]
 
   def show
+    render json: @team
   end
 
   def create

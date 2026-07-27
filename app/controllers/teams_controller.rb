@@ -1,31 +1,44 @@
 class TeamsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_team, only: [:show, :update, :destroy]
-  before_action :require_manager!, only: [:create]
-  before_action :require_team_manager!, only: [:update, :destroy]
+  before_action :set_team, only: [ :show, :update, :destroy ]
+  before_action :require_manager!, only: [ :create ]
+  before_action :require_team_manager!, only: [ :update, :destroy ]
 
   def show
     render json: @team
   end
-
+  
   def create
-    @team = Team.new(team_params)
-    @team.save
+  @team = Team.new(team_params)
+  ActiveRecord::Base.transaction do
+    @team.save!
+    TeamMembership.create!( user: current_user, team: @team, role: "manager", status: "approved", preferred_position: "CM")
+  end
+  render json: @team, status: :created
+  rescue ActiveRecord::RecordInvalid => error
+  render json: { errors: error.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def update
-    @team.update(team_params)
+    if @team.update(team_params)
+      render json: @team, status: :ok
+    else
+      render json: { errors: @team.errors.full_messages }, status: :unprocessable_entity
+    end
   end
 
   def destroy
     @team.destroy
+    render json: { message: "Team deleted successfully" }, status: :ok
   end
 
   private
 
   def set_team
     @team = Team.find(params[:id])
-  end
+    return if @team
+      render json: { error: "Team not found" }, status: :not_found
+    end
 
   def team_params
     params.require(:team).permit(:name, :invite_code, :description)

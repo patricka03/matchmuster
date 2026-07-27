@@ -10,9 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_25_151530) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_27_150121) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "matches", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "kickoff_time"
+    t.string "location"
+    t.string "match_type"
+    t.string "opponent"
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["team_id"], name: "index_matches_on_team_id"
+  end
 
   create_table "team_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -54,6 +65,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_25_151530) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "matches", "teams"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
 end

@@ -5,6 +5,9 @@ class Match < ApplicationRecord
 
   belongs_to :team
 
+  has_many :availabilities, dependent: :destroy
+  has_many :users, through: :availabilities
+
   validates :opponent, :match_type, :location, :kickoff_time, presence: true
   validates :match_type, inclusion: { in: MATCH_TYPES }
 

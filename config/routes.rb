@@ -1,10 +1,11 @@
 Rails.application.routes.draw do
   devise_for :users
   resources :teams do
-  resources :team_memberships, only: [:index]
+    resources :matches, only: [ :index, :show, :create, :update, :destroy ]
+    resources :team_memberships, only: [ :index ]
   end
 
-resources :team_memberships, only: [:create, :destroy] do
+resources :team_memberships, only: [ :create, :destroy ] do
   member do
     patch :approve
     patch :reject

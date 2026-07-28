@@ -10,9 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_27_150121) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_28_142022) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "availabilities", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "match_id", null: false
+    t.string "status"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["match_id"], name: "index_availabilities_on_match_id"
+    t.index ["user_id"], name: "index_availabilities_on_user_id"
+  end
 
   create_table "matches", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -65,6 +75,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_27_150121) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "availabilities", "matches"
+  add_foreign_key "availabilities", "users"
   add_foreign_key "matches", "teams"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"

@@ -1,10 +1,10 @@
 class MatchesController < ApplicationController
-  before_action :set_team, only: %i[create]
+  before_action :set_team, only: %i[index create]
   before_action :set_match, only: %i[show update destroy]
   before_action :authorise_approved_manager, only: %i[create update destroy]
 
   def index
-    @matches = Match.all
+    @matches = @team.matches
 
     render json: @matches, status: :ok
   end
@@ -14,28 +14,42 @@ class MatchesController < ApplicationController
   end
 
   def create
-    @match = @team.matches.new(matches_params)
+    @match = @team.matches.new(match_params)
 
     if @match.save
       render json: @match, status: :created
     else
-      render json: { errors: @match.errors.full_messages },
-      status: :unprocessable_entity
+      render json: {
+        errors: @match.errors.full_messages
+      }, status: :unprocessable_entity
     end
   end
 
   def update
-    @match.update(matches_params)
+    if @match.update(match_params)
+      render json: @match, status: :ok
+    else
+      render json: {
+        errors: @match.errors.full_messages
+      }, status: :unprocessable_entity
+    end
   end
 
   def destroy
     @match.destroy
+
+    head :no_content
   end
 
   private
 
   def set_team
     @team = Team.find(params[:team_id])
+  end
+
+  def set_match
+    @team = Team.find(params[:team_id])
+    @match = @team.matches.find(params[:id])
   end
 
   def authorise_approved_manager
@@ -46,7 +60,7 @@ class MatchesController < ApplicationController
       current_user.manager_verification_status == "approved"
 
     manager_membership = current_user.team_memberships.exists?(
-      team: team,
+      team_id: team.id,
       role: "manager",
       status: "approved"
     )
@@ -58,11 +72,7 @@ class MatchesController < ApplicationController
     }, status: :forbidden
   end
 
-  def set_match
-    @match = Match.find(params[:id])
-  end
-
-  def matches_params
+  def match_params
     params.require(:match).permit(
       :opponent,
       :match_type,

@@ -98,8 +98,9 @@ class AvailabilitiesController < ApplicationController
   private
 
   def set_match
-    @match = Match.find(params[:match_id])
-  end
+  @team = Team.find(params[:team_id])
+  @match = @team.matches.find(params[:match_id])
+end
 
   def set_availability
     @availability = current_user.availabilities.find(params[:id])

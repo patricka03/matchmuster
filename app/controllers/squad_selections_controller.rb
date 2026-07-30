@@ -11,7 +11,7 @@ class SquadSelectionsController < ApplicationController
     render json: @squad_selections.as_json(
       include: {
         user: {
-          only: %i[id name]
+          only: %i[id first_name]
         }
       }
     )

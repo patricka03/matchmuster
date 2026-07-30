@@ -13,7 +13,7 @@ class PostsController < ApplicationController
     render json: @posts.as_json(
       include: {
         user: {
-          only: %i[id name]
+          only: %i[id first_name]
         }
       }
     )
@@ -104,32 +104,33 @@ class PostsController < ApplicationController
   end
 
   def create_post_notifications
-    approved_memberships = @team.team_memberships
-                                .includes(:user)
-                                .where(status: "approved")
+    return if @post.post_type == "general"
+      approved_memberships = @team.team_memberships
+                                  .includes(:user)
+                                  .where(status: "approved")
 
-    approved_memberships.each do |membership|
-      next if membership.user_id == current_user.id
+      approved_memberships.each do |membership|
+        next if membership.user_id == current_user.id
 
-      Notification.create!(
-        user: membership.user,
-        title: post_notification_title,
-        message: post_notification_message,
-        notification_type: post_notification_type
-      )
-    end
+        Notification.create!(
+          user: membership.user,
+          title: post_notification_title,
+          message: post_notification_message,
+          notification_type: post_notification_type
+        )
+      end
   end
 
-  def post_notification_type
-    case @post.post_type
-    when "announcement"
-      "announcement"
-    when "tactical"
-      "tactical_post"
-    else
-      "post_created"
-    end
-  end
+  # def post_notification_type
+  #   case @post.post_type
+  #   when "announcement"
+  #     "announcement"
+  #   when "tactical"
+  #     "tactical_post"
+  #   else
+  #     "post_created"
+  #   end
+  # end
 
   def post_notification_title
     case @post.post_type

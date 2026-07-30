@@ -1,5 +1,6 @@
 class MatchesController < ApplicationController
   before_action :authenticate_user!
+  before_action :authorize_team_member!, only: %i[index show]
   before_action :set_team, only: %i[index create]
   before_action :set_match, only: %i[show update destroy]
   before_action :authorise_approved_manager, only: %i[create update destroy]
@@ -49,6 +50,19 @@ class MatchesController < ApplicationController
   end
 
   private
+
+  def authorize_team_member!
+    approved_member = current_user.team_memberships.exists?(
+      team_id: @team.id,
+      status: "approved"
+    )
+
+    return if approved_member
+
+    render json: {
+      error: "You are not an approved member of this team"
+    }, status: :forbidden
+  end
 
   def set_team
     @team = Team.find(params[:team_id])

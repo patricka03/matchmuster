@@ -1,0 +1,21 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  match: one
+  selection_type: MyString
+  position: MyString
+  captain: false
+  is_corner_taker: false
+  is_penalty_taker: false
+  is_freekick_taker: false
+
+two:
+  user: two
+  match: two
+  selection_type: MyString
+  position: MyString
+  captain: false
+  is_corner_taker: false
+  is_penalty_taker: false
+  is_freekick_taker: false

@@ -7,6 +7,8 @@ class Match < ApplicationRecord
 
   has_many :availabilities, dependent: :destroy
   has_many :users, through: :availabilities
+  has_many :squad_selections, dependent: :destroy
+
 
   validates :opponent, :match_type, :location, :kickoff_time, presence: true
   validates :match_type, inclusion: { in: MATCH_TYPES }

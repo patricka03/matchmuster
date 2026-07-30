@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_28_142022) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_29_121520) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,6 +33,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_142022) do
     t.bigint "team_id", null: false
     t.datetime "updated_at", null: false
     t.index ["team_id"], name: "index_matches_on_team_id"
+  end
+
+  create_table "squad_selections", force: :cascade do |t|
+    t.boolean "captain", default: false, null: false
+    t.datetime "created_at", null: false
+    t.boolean "is_corner_taker", default: false, null: false
+    t.boolean "is_freekick_taker", default: false, null: false
+    t.boolean "is_penalty_taker", default: false, null: false
+    t.bigint "match_id", null: false
+    t.string "position"
+    t.string "selection_type"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["match_id", "user_id"], name: "index_squad_selections_on_match_id_and_user_id", unique: true
+    t.index ["match_id"], name: "index_squad_selections_on_match_id"
+    t.index ["user_id"], name: "index_squad_selections_on_user_id"
   end
 
   create_table "team_memberships", force: :cascade do |t|
@@ -78,6 +94,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_142022) do
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
   add_foreign_key "matches", "teams"
+  add_foreign_key "squad_selections", "matches"
+  add_foreign_key "squad_selections", "users"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
 end

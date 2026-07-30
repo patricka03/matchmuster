@@ -9,17 +9,19 @@ Rails.application.routes.draw do
         post :remind, on: :collection
       end
 
-      resources :squad_selections, only: %i[index create update destroy]
+      resources :squad_selections,
+                only: %i[index create update destroy]
     end
 
-    resources :team_memberships, only: %i[index]
+    resources :team_memberships,
+              only: %i[index create]
   end
 
   resources :availabilities, only: %i[update]
 
   resources :notifications, only: %i[index update destroy]
 
-  resources :team_memberships, only: %i[create destroy] do
+  resources :team_memberships, only: %i[destroy] do
     member do
       patch :approve
       patch :reject

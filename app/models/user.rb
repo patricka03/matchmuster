@@ -8,7 +8,7 @@ before_validation :set_manager_verification_status, on: :create
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :jwt_authenticatable, jwt_revocation_strategy: self
 
-  self.skip_session_storage = [:http_auth, :params_auth]
+  self.skip_session_storage = [:http_auth, :params_auth, :jwt]
 
   has_many :team_memberships, dependent: :destroy
   has_many :teams, through: :team_memberships

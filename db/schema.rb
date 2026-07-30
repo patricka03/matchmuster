@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_30_141410) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_30_162153) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,6 +25,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_141410) do
   end
 
   create_table "matches", force: :cascade do |t|
+    t.datetime "availability_reminder_sent_at"
     t.datetime "created_at", null: false
     t.datetime "kickoff_time"
     t.string "location"

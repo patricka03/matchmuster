@@ -24,6 +24,8 @@ class PostsController < ApplicationController
     @post.user = current_user
 
     if @post.save
+      create_post_notifications
+
       render json: @post, status: :created
     else
       render json: {
@@ -100,4 +102,48 @@ class PostsController < ApplicationController
 
     permitted
   end
+
+  def create_post_notifications
+    approved_memberships = @team.team_memberships
+                                .includes(:user)
+                                .where(status: "approved")
+
+    approved_memberships.each do |membership|
+      next if membership.user_id == current_user.id
+
+      Notification.create!(
+        user: membership.user,
+        title: post_notification_title,
+        message: post_notification_message,
+        notification_type: post_notification_type
+      )
+    end
+  end
+
+  def post_notification_type
+    case @post.post_type
+    when "announcement"
+      "announcement"
+    when "tactical"
+      "tactical_post"
+    else
+      "post_created"
+    end
+  end
+
+  def post_notification_title
+    case @post.post_type
+    when "announcement"
+      "New Team Announcement"
+    when "tactical"
+      "New Tactical Post"
+    else
+      "New Team Post"
+    end
+  end
+
+  def post_notification_message
+    "#{current_user.first_name} posted: #{@post.title}"
+  end
+
 end

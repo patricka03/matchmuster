@@ -1,13 +1,12 @@
 class AvailabilitiesController < ApplicationController
-  before_action :set_match, only: %i[index create]
+  before_action :authenticate_user!
+  before_action :set_match, only: %i[index create remind]
   before_action :set_availability, only: %i[update]
   before_action :approved_player, only: %i[create update]
-  before_action :approved_team_manager, only: %i[index]
+  before_action :approved_team_manager, only: %i[index remind]
 
   def index
-    availabilities = @match.availabilities.includes(
-      user: :team_memberships
-    )
+    availabilities = @match.availabilities.includes(user: :team_memberships)
 
     response = availabilities.map do |availability|
       membership = availability.user.team_memberships.find do |team_membership|
@@ -64,6 +63,38 @@ class AvailabilitiesController < ApplicationController
     end
   end
 
+  def remind
+    if @match.availability_reminder_sent_at.present?
+      return render json: {
+        error: "An availability reminder has already been sent for this match"
+      }, status: :unprocessable_entity
+    end
+
+    players = players_without_availability
+
+    if players.empty?
+      return render json: {
+        message: "Every approved player has already submitted their availability"
+      }, status: :ok
+    end
+
+    players.each do |player|
+      Notification.create!(
+        user: player,
+        title: "Availability Reminder",
+        message: "Please confirm your availability for the match against #{@match.opponent}.",
+        notification_type: "availability_reminder"
+      )
+    end
+
+    @match.update!(availability_reminder_sent_at: Time.current)
+
+    render json: {
+      message: "Availability reminder sent",
+      players_notified: players.size
+    }, status: :ok
+  end
+
   private
 
   def set_match
@@ -101,6 +132,22 @@ class AvailabilitiesController < ApplicationController
     render json: {
       error: "Only an approved manager of this team can view availability responses"
     }, status: :forbidden
+  end
+
+  def players_without_availability
+    approved_players = @match.team.team_memberships
+                             .includes(:user)
+                             .where(
+                               role: "player",
+                               status: "approved"
+                             )
+                             .map(&:user)
+
+    responding_user_ids = @match.availabilities.pluck(:user_id)
+
+    approved_players.reject do |player|
+      responding_user_ids.include?(player.id)
+    end
   end
 
   def availability_params

@@ -6,8 +6,7 @@ class Post < ApplicationRecord
 
   validates :title, :content, :post_type, presence: true
 
-  validates :post_type,
-            inclusion: { in: POST_TYPES }
+  validates :post_type, inclusion: { in: POST_TYPES }
 
   validate :author_must_be_approved_team_member
   validate :only_managers_can_create_manager_posts
@@ -17,10 +16,7 @@ class Post < ApplicationRecord
   def author_must_be_approved_team_member
     return if user.blank? || team.blank?
 
-    approved_member = user.team_memberships.exists?(
-      team_id: team_id,
-      status: "approved"
-    )
+    approved_member = user.team_memberships.exists?(team_id: team_id, status: "approved")
 
     unless approved_member
       errors.add(:user, "must be an approved member of this team")
@@ -31,17 +27,10 @@ class Post < ApplicationRecord
     return unless %w[announcement tactical].include?(post_type)
     return if user.blank? || team.blank?
 
-    approved_manager = user.team_memberships.exists?(
-      team_id: team_id,
-      role: "manager",
-      status: "approved"
-    )
+    approved_manager = user.team_memberships.exists?(team_id: team_id, role: "manager", status: "approved")
 
     unless approved_manager
-      errors.add(
-        :post_type,
-        "can only be used by an approved team manager"
-      )
+      errors.add(:post_type, "can only be used by an approved team manager")
     end
   end
 end

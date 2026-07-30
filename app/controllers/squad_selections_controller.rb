@@ -23,6 +23,8 @@ class SquadSelectionsController < ApplicationController
     )
 
     if @squad_selection.save
+      create_squad_selected_notification
+
       render json: @squad_selection,
              status: :created
     else
@@ -34,6 +36,8 @@ class SquadSelectionsController < ApplicationController
 
   def update
     if @squad_selection.update(squad_selection_params)
+      create_squad_updated_notification if important_squad_details_changed?
+
       render json: @squad_selection,
              status: :ok
     else
@@ -87,5 +91,52 @@ class SquadSelectionsController < ApplicationController
       :is_penalty_taker,
       :is_freekick_taker
     )
+  end
+
+  def create_squad_selected_notification
+    Notification.create!(
+      user: @squad_selection.user,
+      title: "Squad Selected",
+      message: squad_selected_message,
+      notification_type: "squad_selected"
+    )
+  end
+
+  def create_squad_updated_notification
+    Notification.create!(
+      user: @squad_selection.user,
+      title: "Squad Updated",
+      message: squad_updated_message,
+      notification_type: "squad_updated"
+    )
+  end
+
+  def important_squad_details_changed?
+    @squad_selection.saved_change_to_selection_type? ||
+      @squad_selection.saved_change_to_position?
+  end
+
+  def squad_selected_message
+    message = "You have been selected as a #{@squad_selection.selection_type}"
+
+    if @squad_selection.position.present?
+      message += " in #{@squad_selection.position}"
+    end
+
+    "#{message} for the match against #{@match.opponent}."
+  end
+
+  def squad_updated_message
+    changed_details = []
+
+    if @squad_selection.saved_change_to_selection_type?
+      changed_details << "selection"
+    end
+
+    if @squad_selection.saved_change_to_position?
+      changed_details << "position"
+    end
+
+    "Your #{changed_details.to_sentence} has been updated for the match against #{@match.opponent}."
   end
 end

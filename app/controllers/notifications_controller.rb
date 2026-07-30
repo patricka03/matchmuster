@@ -26,12 +26,12 @@ class NotificationsController < ApplicationController
 
   private
 
-  def post_params
-    permitted = params.require(:post).permit(:title, :content, :post_type, :pinned)
-    permitted.delete(:pinned) unless approved_manager?
+  # def post_params
+  #   permitted = params.require(:post).permit(:title, :content, :post_type, :pinned)
+  #   permitted.delete(:pinned) unless approved_manager?
 
-    permitted
-  end
+  #   permitted
+  # end
 
   def create_post_notifications
     approved_memberships = @team.team_memberships.includes(:user).where(status: "approved")

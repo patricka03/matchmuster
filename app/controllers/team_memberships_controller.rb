@@ -1,64 +1,94 @@
-class MatchesController < ApplicationController
-  before_action :set_team, only: %i[create]
-  before_action :set_match, only: %i[show update destroy]
-  before_action :authorise_approved_manager, only: %i[create update destroy]
+class TeamMembershipsController < ApplicationController
+  before_action :authenticate_user!
+
+  before_action :set_team_membership,
+                only: %i[approve reject destroy]
+
+  before_action :authorize_manager!,
+                only: %i[approve reject]
 
   def index
-    @matches = Match.all
-  end
+    @team = Team.find(params[:team_id])
 
-  def show
+    @team_memberships = @team.team_memberships.includes(:user)
+
+    render json: @team_memberships.as_json(
+      include: {
+        user: {
+          only: %i[id first_name last_name email]
+        }
+      }
+    )
   end
 
   def create
-    @match = @team.matches.new(matches_params)
-    @match.save
+    @team = Team.find(params[:team_id])
+
+    @team_membership = @team.team_memberships.new(
+      team_membership_params
+    )
+
+    @team_membership.user = current_user
+    @team_membership.status = "pending"
+
+    if @team_membership.save
+      render json: @team_membership, status: :created
+    else
+      render json: {
+        errors: @team_membership.errors.full_messages
+      }, status: :unprocessable_entity
+    end
   end
 
-  def update
-    @match.update(matches_params)
+  def approve
+    @team_membership.update!(status: "approved")
+
+    render json: @team_membership
+  end
+
+  def reject
+    @team_membership.update!(status: "rejected")
+
+    render json: @team_membership
   end
 
   def destroy
-    @match.destroy
+    if @team_membership.user == current_user || manager_of_team?
+      @team_membership.destroy
+      head :no_content
+    else
+      render json: {
+        error: "You are not authorised to remove this membership"
+      }, status: :forbidden
+    end
   end
 
   private
 
-  def set_team
-    @team = Team.find(params[:team_id])
+  def set_team_membership
+    @team_membership = TeamMembership.find(params[:id])
   end
 
-  def authorise_approved_manager
-    team = @match ? @match.team : @team
-
-    valid_manager =
-      current_user.account_type == "manager" &&
-      current_user.manager_verification_status == "approved"
-
-    manager_membership = current_user.team_memberships.exists?(
-      team: team,
-      role: "manager",
-      status: "approved"
-    )
-
-    return if valid_manager && manager_membership
+  def authorize_manager!
+    return if manager_of_team?
 
     render json: {
-      error: "Only an approved manager of this team can perform this action"
+      error: "You are not authorised to perform this action"
     }, status: :forbidden
   end
 
-  def set_match
-    @match = Match.find(params[:id])
+  def manager_of_team?
+    current_user.team_memberships.exists?(
+      team_id: @team_membership.team_id,
+      role: "manager",
+      status: "approved"
+    )
   end
 
-  def matches_params
-    params.require(:match).permit(
-      :opponent,
-      :match_type,
-      :location,
-      :kickoff_time
+  def team_membership_params
+    params.require(:team_membership).permit(
+      :role,
+      :preferred_position
     )
   end
 end

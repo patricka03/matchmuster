@@ -13,6 +13,8 @@ before_validation :set_manager_verification_status, on: :create
   has_many :team_memberships, dependent: :destroy
   has_many :teams, through: :team_memberships
   has_many :squad_selections, dependent: :destroy
+  has_many :posts, dependent: :destroy
+  has_many :notification, dependent: :destroy
 
 
   has_many :availabilities, dependent: :destroy

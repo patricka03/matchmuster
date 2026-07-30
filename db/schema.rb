@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_29_121520) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_30_141410) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,6 +33,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_29_121520) do
     t.bigint "team_id", null: false
     t.datetime "updated_at", null: false
     t.index ["team_id"], name: "index_matches_on_team_id"
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "message"
+    t.string "notification_type"
+    t.boolean "read", default: false, null: false
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "posts", force: :cascade do |t|
+    t.text "content"
+    t.datetime "created_at", null: false
+    t.boolean "pinned", default: false, null: false
+    t.string "post_type"
+    t.bigint "team_id", null: false
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["team_id"], name: "index_posts_on_team_id"
+    t.index ["user_id"], name: "index_posts_on_user_id"
   end
 
   create_table "squad_selections", force: :cascade do |t|
@@ -94,6 +118,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_29_121520) do
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
   add_foreign_key "matches", "teams"
+  add_foreign_key "notifications", "users"
+  add_foreign_key "posts", "teams"
+  add_foreign_key "posts", "users"
   add_foreign_key "squad_selections", "matches"
   add_foreign_key "squad_selections", "users"
   add_foreign_key "team_memberships", "teams"

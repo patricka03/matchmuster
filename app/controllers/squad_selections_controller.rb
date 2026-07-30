@@ -68,13 +68,17 @@ class SquadSelectionsController < ApplicationController
   end
 
   def authorize_manager!
-    approved_manager = current_user.team_memberships.exists?(
+    verified_manager =
+      current_user.account_type == "manager" &&
+      current_user.manager_verification_status == "approved"
+
+    approved_manager_membership = current_user.team_memberships.exists?(
       team_id: @team.id,
       role: "manager",
       status: "approved"
     )
 
-    return if approved_manager
+    return if verified_manager && approved_manager_membership
 
     render json: {
       error: "You are not authorised to manage this squad"

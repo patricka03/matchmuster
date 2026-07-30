@@ -1,8 +1,8 @@
 class MatchesController < ApplicationController
   before_action :authenticate_user!
-  before_action :authorize_team_member!, only: %i[index show]
   before_action :set_team, only: %i[index create]
   before_action :set_match, only: %i[show update destroy]
+  before_action :authorize_team_member!, only: %i[index show]
   before_action :authorise_approved_manager, only: %i[create update destroy]
 
   def index

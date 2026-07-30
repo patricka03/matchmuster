@@ -120,18 +120,7 @@ class PostsController < ApplicationController
         )
       end
   end
-
-  # def post_notification_type
-  #   case @post.post_type
-  #   when "announcement"
-  #     "announcement"
-  #   when "tactical"
-  #     "tactical_post"
-  #   else
-  #     "post_created"
-  #   end
-  # end
-
+  
   def post_notification_title
     case @post.post_type
     when "announcement"

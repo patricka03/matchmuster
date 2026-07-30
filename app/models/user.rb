@@ -18,7 +18,7 @@ before_validation :set_manager_verification_status, on: :create
 
 
   has_many :availabilities, dependent: :destroy
-  has_many :match, through: :availabilities
+  has_many :matches, through: :availabilities
 
   validates :first_name, :last_name, :account_type, presence: true
   validates :account_type, inclusion: { in: %w[player manager] }

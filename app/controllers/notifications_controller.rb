@@ -33,6 +33,14 @@ class NotificationsController < ApplicationController
   #   permitted
   # end
 
+  def set_notification
+    @notification = current_user.notifications.find(params[:id])
+  end
+
+  def notification_params
+    params.require(:notification).permit(:read)
+  end
+
   def create_post_notifications
     approved_memberships = @team.team_memberships.includes(:user).where(status: "approved")
 

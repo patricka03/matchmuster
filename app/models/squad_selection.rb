@@ -6,17 +6,11 @@ class SquadSelection < ApplicationRecord
 
   POSITIONS = %w[ GK CB LB RB LWB RWB CDM CM CAM LM RM LW RW CF ST ].freeze
 
-  validates :selection_type, presence: true,
-                             inclusion: { in: SELECTION_TYPES }
+  validates :selection_type, presence: true, inclusion: { in: SELECTION_TYPES }
 
-  validates :position, presence: true,
-                       inclusion: { in: POSITIONS }
+  validates :position, presence: true, inclusion: { in: POSITIONS }
 
-  validates :user_id,
-            uniqueness: {
-              scope: :match_id,
-              message: "has already been selected for this match"
-            }
+  validates :user_id, uniqueness: {scope: :match_id, message: "has already been selected for this match"}
 
   validate :player_belongs_to_match_team
   validate :player_is_available

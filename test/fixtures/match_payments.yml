@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  match: one
+  amount_pence: 1
+  status: MyString
+  paid_at: 2026-08-01 07:16:51
+
+two:
+  user: two
+  match: two
+  amount_pence: 1
+  status: MyString
+  paid_at: 2026-08-01 07:16:51

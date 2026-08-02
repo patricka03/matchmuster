@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_30_162153) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_061651) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,6 +22,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_162153) do
     t.bigint "user_id", null: false
     t.index ["match_id"], name: "index_availabilities_on_match_id"
     t.index ["user_id"], name: "index_availabilities_on_user_id"
+  end
+
+  create_table "match_payments", force: :cascade do |t|
+    t.integer "amount_pence", null: false
+    t.datetime "created_at", null: false
+    t.bigint "match_id", null: false
+    t.datetime "paid_at"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["match_id", "user_id"], name: "index_match_payments_on_match_id_and_user_id", unique: true
+    t.index ["match_id"], name: "index_match_payments_on_match_id"
+    t.index ["user_id"], name: "index_match_payments_on_user_id"
   end
 
   create_table "matches", force: :cascade do |t|
@@ -45,6 +58,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_162153) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "post_reads", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "post_id", null: false
+    t.datetime "read_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["post_id", "user_id"], name: "index_post_reads_on_post_id_and_user_id", unique: true
+    t.index ["post_id"], name: "index_post_reads_on_post_id"
+    t.index ["user_id"], name: "index_post_reads_on_user_id"
   end
 
   create_table "posts", force: :cascade do |t|
@@ -118,8 +142,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_30_162153) do
 
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
+  add_foreign_key "match_payments", "matches"
+  add_foreign_key "match_payments", "users"
   add_foreign_key "matches", "teams"
   add_foreign_key "notifications", "users"
+  add_foreign_key "post_reads", "posts"
+  add_foreign_key "post_reads", "users"
   add_foreign_key "posts", "teams"
   add_foreign_key "posts", "users"
   add_foreign_key "squad_selections", "matches"

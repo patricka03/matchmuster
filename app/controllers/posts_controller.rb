@@ -2,7 +2,7 @@ class PostsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team
   before_action :authorize_team_member!
-  before_action :set_post, only: %i[update destroy]
+  before_action :set_post, only: %i[show update destroy]
   before_action :authorize_post_management!, only: %i[update destroy]
 
   def index
@@ -17,6 +17,18 @@ class PostsController < ApplicationController
         }
       }
     )
+  end
+
+  def show
+    record_post_read
+
+    render json: @post.as_json(
+      include: {
+        user: {
+          only: %i[id first_name]
+        }
+      }
+    ), status: :ok
   end
 
   def create
@@ -103,32 +115,39 @@ class PostsController < ApplicationController
     permitted
   end
 
+  def record_post_read
+    return unless %w[announcement tactical].include?(@post.post_type)
+
+    @post.post_reads.find_or_create_by!(user: current_user) do |post_read|
+      post_read.read_at = Time.current
+    end
+  end
+
   def create_post_notifications
     return if @post.post_type == "general"
-      approved_memberships = @team.team_memberships
-                                  .includes(:user)
-                                  .where(status: "approved")
 
-      approved_memberships.each do |membership|
-        next if membership.user_id == current_user.id
+    approved_memberships = @team.team_memberships
+                                .includes(:user)
+                                .where(status: "approved")
 
-        Notification.create!(
-          user: membership.user,
-          title: post_notification_title,
-          message: post_notification_message,
-          notification_type: post_notification_type
-        )
-      end
+    approved_memberships.each do |membership|
+      next if membership.user_id == current_user.id
+
+      Notification.create!(
+        user: membership.user,
+        title: post_notification_title,
+        message: post_notification_message,
+        notification_type: post_notification_type
+      )
+    end
   end
-  
+
   def post_notification_title
     case @post.post_type
     when "announcement"
       "New Team Announcement"
     when "tactical"
       "New Tactical Post"
-    else
-      "New Team Post"
     end
   end
 
@@ -136,4 +155,12 @@ class PostsController < ApplicationController
     "#{current_user.first_name} posted: #{@post.title}"
   end
 
+  def post_notification_type
+    case @post.post_type
+    when "announcement"
+      "announcement"
+    when "tactical"
+      "tactical_post"
+    end
+  end
 end

@@ -2,6 +2,11 @@ class Post < ApplicationRecord
   belongs_to :team
   belongs_to :user
 
+  has_many :post_reads, dependent: :destroy
+
+  has_many :readers, through: :post_reads, source: :user
+
+
   POST_TYPES = %w[announcement tactical general].freeze
 
   validates :title, :content, :post_type, presence: true

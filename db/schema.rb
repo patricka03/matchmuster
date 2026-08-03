@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_061651) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_091624) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_061651) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["match_id", "user_id"], name: "index_availabilities_on_match_id_and_user_id", unique: true
     t.index ["match_id"], name: "index_availabilities_on_match_id"
     t.index ["user_id"], name: "index_availabilities_on_user_id"
   end
@@ -30,10 +31,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_061651) do
     t.bigint "match_id", null: false
     t.datetime "paid_at"
     t.string "status", default: "pending", null: false
+    t.string "stripe_checkout_session_id"
+    t.string "stripe_payment_intent_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["match_id", "user_id"], name: "index_match_payments_on_match_id_and_user_id", unique: true
     t.index ["match_id"], name: "index_match_payments_on_match_id"
+    t.index ["stripe_checkout_session_id"], name: "index_match_payments_on_stripe_checkout_session_id", unique: true
+    t.index ["stripe_payment_intent_id"], name: "index_match_payments_on_stripe_payment_intent_id", unique: true
     t.index ["user_id"], name: "index_match_payments_on_user_id"
   end
 
@@ -118,8 +123,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_061651) do
     t.text "description"
     t.string "invite_code"
     t.string "name"
+    t.string "stripe_account_id"
     t.datetime "updated_at", null: false
     t.index ["invite_code"], name: "index_teams_on_invite_code", unique: true
+    t.index ["stripe_account_id"], name: "index_teams_on_stripe_account_id", unique: true
   end
 
   create_table "users", force: :cascade do |t|

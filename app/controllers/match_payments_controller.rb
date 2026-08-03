@@ -3,9 +3,10 @@ class MatchPaymentsController < ApplicationController
   before_action :set_team
   before_action :set_match
   before_action :authorize_team_member!
-  before_action :set_match_payment, only: %i[show update destroy]
-  before_action :authorize_manager!, only: %i[create update destroy summary]
+  before_action :set_match_payment, only: %i[show update destroy checkout]
+  before_action :authorize_manager!, only: %i[create bulk_create update destroy summary]
   before_action :authorize_payment_view!, only: %i[show]
+  before_action :authorize_checkout!, only: %i[checkout]
 
   def index
     @match_payments =
@@ -35,15 +36,13 @@ class MatchPaymentsController < ApplicationController
   end
 
   def create
-    player_membership = @team.team_memberships.find_by(
-      user_id: create_payment_params[:user_id],
-      role: "player",
-      status: "approved"
+    squad_selection = @match.squad_selections.find_by(
+      user_id: create_payment_params[:user_id]
     )
 
-    unless player_membership
+    unless squad_selection
       return render json: {
-        error: "Payment can only be requested from an approved player in this team"
+        error: "Payment can only be requested from a player selected for this match"
       }, status: :unprocessable_entity
     end
 
@@ -60,25 +59,73 @@ class MatchPaymentsController < ApplicationController
     end
   end
 
+  def bulk_create
+    amount_pence = bulk_payment_params[:amount_pence]
+
+    created_count = 0
+    skipped_count = 0
+
+    @match.squad_selections.includes(:user).each do |selection|
+      match_payment = @match.match_payments.find_or_initialize_by(
+        user: selection.user
+      )
+
+      if match_payment.persisted?
+        skipped_count += 1
+        next
+      end
+
+      match_payment.amount_pence = amount_pence
+
+      if match_payment.save
+        @match_payment = match_payment
+        create_match_payment_notification
+        created_count += 1
+      end
+    end
+
+    render json: {
+      message: "Bulk match-payment request completed",
+      created_count: created_count,
+      skipped_count: skipped_count
+    }, status: :created
+  end
+
   def update
     new_status = update_payment_params[:status]
+    new_amount = update_payment_params[:amount_pence]
 
-    unless %w[pending paid waived].include?(new_status)
+    amount_changed =
+      new_amount.present? &&
+      new_amount.to_i != @match_payment.amount_pence
+
+    if new_amount.present? && @match_payment.status != "pending"
+      return render json: {
+        error: "Only pending payment amounts can be changed"
+      }, status: :unprocessable_entity
+    end
+
+    if new_status.present? && !%w[pending paid waived].include?(new_status)
       return render json: {
         error: "Status must be pending, paid or waived"
       }, status: :unprocessable_entity
     end
 
-    attributes = {
-      status: new_status,
-      paid_at: new_status == "paid" ? Time.current : nil
-    }
+    attributes = {}
+    attributes[:amount_pence] = new_amount if new_amount.present?
+
+    if new_status.present?
+      attributes[:status] = new_status
+      attributes[:paid_at] = new_status == "paid" ? Time.current : nil
+    end
 
     if @match_payment.update(attributes)
       if @match_payment.saved_change_to_status?
         create_paid_notification if @match_payment.status == "paid"
         create_waived_notification if @match_payment.status == "waived"
       end
+
+      create_amount_changed_notification if amount_changed
 
       render json: @match_payment, status: :ok
     else
@@ -95,15 +142,80 @@ class MatchPaymentsController < ApplicationController
   end
 
   def summary
-  payments = @match.match_payments
+    payments = @match.match_payments
 
-  render json: {
-    total_requested_pence: payments.sum(:amount_pence),
-    total_paid_pence: payments.where(status: "paid").sum(:amount_pence),
-    total_pending_pence: payments.where(status: "pending").sum(:amount_pence),
-    total_waived_pence: payments.where(status: "waived").sum(:amount_pence),
-    payment_count: payments.count
+    render json: {
+      total_requested_pence: payments.sum(:amount_pence),
+      total_paid_pence: payments.where(status: "paid").sum(:amount_pence),
+      total_pending_pence: payments.where(status: "pending").sum(:amount_pence),
+      total_waived_pence: payments.where(status: "waived").sum(:amount_pence),
+      payment_count: payments.count
     }, status: :ok
+  end
+
+  def checkout
+    if @match_payment.status != "pending"
+      return render json: {
+        error: "Only pending payments can be paid"
+      }, status: :unprocessable_entity
+    end
+
+    if @team.stripe_account_id.blank?
+      return render json: {
+        error: "This team has not connected Stripe"
+      }, status: :unprocessable_entity
+    end
+
+    stripe_account = Stripe::Account.retrieve(@team.stripe_account_id)
+
+    unless stripe_account.charges_enabled
+      return render json: {
+        error: "This team's Stripe account is not ready to accept payments"
+      }, status: :unprocessable_entity
+    end
+
+    checkout_session = Stripe::Checkout::Session.create(
+      {
+        mode: "payment",
+        line_items: [
+          {
+            price_data: {
+              currency: "gbp",
+              unit_amount: @match_payment.amount_pence,
+              product_data: {
+                name: "Match payment"
+              }
+            },
+            quantity: 1
+          }
+        ],
+        success_url: "http://localhost:5173/payments/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "http://localhost:5173/payments/cancelled",
+        metadata: {
+          match_payment_id: @match_payment.id
+        },
+        payment_intent_data: {
+          metadata: {
+            match_payment_id: @match_payment.id
+          }
+        }
+      },
+      {
+        stripe_account: @team.stripe_account_id
+      }
+    )
+
+    @match_payment.update!(
+      stripe_checkout_session_id: checkout_session.id
+    )
+
+    render json: {
+      checkout_url: checkout_session.url
+    }, status: :ok
+  rescue Stripe::StripeError => error
+    render json: {
+      error: error.message
+    }, status: :unprocessable_entity
   end
 
   private
@@ -150,6 +262,14 @@ class MatchPaymentsController < ApplicationController
     }, status: :forbidden
   end
 
+  def authorize_checkout!
+    return if @match_payment.user_id == current_user.id
+
+    render json: {
+      error: "You can only pay your own match payment"
+    }, status: :forbidden
+  end
+
   def approved_manager?
     current_user.account_type == "manager" &&
       current_user.manager_verification_status == "approved" &&
@@ -167,8 +287,12 @@ class MatchPaymentsController < ApplicationController
     )
   end
 
+  def bulk_payment_params
+    params.require(:match_payment).permit(:amount_pence)
+  end
+
   def update_payment_params
-    params.require(:match_payment).permit(:status)
+    params.require(:match_payment).permit(:status, :amount_pence)
   end
 
   def create_match_payment_notification
@@ -192,6 +316,14 @@ class MatchPaymentsController < ApplicationController
       title: "Match payment waived",
       message: "Your match payment of £#{formatted_amount} has been waived. You do not need to pay.",
       notification_type: "match_payment_waived"
+    )
+  end
+
+  def create_amount_changed_notification
+    @match_payment.user.notifications.create!(
+      title: "Match payment amount updated",
+      message: "Your match payment amount has been changed to £#{formatted_amount}.",
+      notification_type: "match_payment_amount_changed"
     )
   end
 

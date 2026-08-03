@@ -13,6 +13,7 @@ class Notification < ApplicationRecord
     match_payment_requested
     match_payment_paid
     match_payment_waived
+    match_payment_amount_changed
   ].freeze
 
   belongs_to :user

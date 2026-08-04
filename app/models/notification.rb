@@ -17,9 +17,8 @@ class Notification < ApplicationRecord
   ].freeze
 
   belongs_to :user
+  belongs_to :match, optional: true
 
   validates :title, :message, :notification_type, presence: true
-
   validates :notification_type, inclusion: { in: NOTIFICATION_TYPES }
-
 end

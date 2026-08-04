@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_091624) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_04_213826) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -45,6 +45,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_091624) do
   create_table "matches", force: :cascade do |t|
     t.datetime "availability_reminder_sent_at"
     t.datetime "created_at", null: false
+    t.text "description"
     t.datetime "kickoff_time"
     t.string "location"
     t.string "match_type"
@@ -56,12 +57,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_091624) do
 
   create_table "notifications", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.bigint "match_id"
     t.text "message"
     t.string "notification_type"
     t.boolean "read", default: false, null: false
     t.string "title"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["match_id"], name: "index_notifications_on_match_id"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
@@ -152,6 +155,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_091624) do
   add_foreign_key "match_payments", "matches"
   add_foreign_key "match_payments", "users"
   add_foreign_key "matches", "teams"
+  add_foreign_key "notifications", "matches"
   add_foreign_key "notifications", "users"
   add_foreign_key "post_reads", "posts"
   add_foreign_key "post_reads", "users"

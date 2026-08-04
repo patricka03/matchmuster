@@ -100,6 +100,7 @@ class SquadSelectionsController < ApplicationController
   def create_squad_selected_notification
     Notification.create!(
       user: @squad_selection.user,
+      match: @match,
       title: "Squad Selected",
       message: squad_selected_message,
       notification_type: "squad_selected"
@@ -109,6 +110,7 @@ class SquadSelectionsController < ApplicationController
   def create_squad_updated_notification
     Notification.create!(
       user: @squad_selection.user,
+      match: @match,
       title: "Squad Updated",
       message: squad_updated_message,
       notification_type: "squad_updated"

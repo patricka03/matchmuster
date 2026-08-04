@@ -117,6 +117,7 @@ class PostsController < ApplicationController
 
   def record_post_read
     return unless %w[announcement tactical].include?(@post.post_type)
+    return if @post.user_id == current_user.id
 
     @post.post_reads.find_or_create_by!(user: current_user) do |post_read|
       post_read.read_at = Time.current
@@ -135,6 +136,7 @@ class PostsController < ApplicationController
 
       Notification.create!(
         user: membership.user,
+        match: @match,
         title: post_notification_title,
         message: post_notification_message,
         notification_type: post_notification_type

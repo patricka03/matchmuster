@@ -3,9 +3,16 @@ class NotificationsController < ApplicationController
   before_action :set_notification, only: %i[update destroy]
 
   def index
-    @notifications = current_user.notifications.order(created_at: :desc)
+    @notifications = current_user.notifications
+                                .includes(:match)
+                                .order(created_at: :desc)
 
-    render json: @notifications
+    render json: @notifications.map { |notification|
+      notification.as_json.merge(
+        "match_id" => notification.match_id,
+        "team_id" => notification.match&.team_id
+      )
+    }, status: :ok
   end
 
   def update
@@ -47,7 +54,7 @@ class NotificationsController < ApplicationController
     approved_memberships.each do |membership|
       next if membership.user_id == current_user.id
 
-      Notification.create!( user: membership.user, title: post_notification_title, message: post_notification_message, notification_type: post_notification_type)
+      Notification.create!( user: membership.user, match: @match, title: post_notification_title, message: post_notification_message, notification_type: post_notification_type)
     end
   end
 

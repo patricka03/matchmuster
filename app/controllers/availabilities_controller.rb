@@ -1,12 +1,14 @@
 class AvailabilitiesController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_match, only: %i[index create remind]
-  before_action :set_availability, only: %i[update]
-  before_action :approved_player, only: %i[create update]
+  before_action :set_match, only: %i[index create mine remind]
+  before_action :set_availability, only: :update
+  before_action :approved_player, only: %i[create update mine]
   before_action :approved_team_manager, only: %i[index remind]
 
   def index
-    availabilities = @match.availabilities.includes(user: :team_memberships)
+    availabilities = @match.availabilities.includes(
+      user: :team_memberships
+    )
 
     response = availabilities.map do |availability|
       membership = availability.user.team_memberships.find do |team_membership|
@@ -29,12 +31,6 @@ class AvailabilitiesController < ApplicationController
 
     render json: response, status: :ok
   end
-
-  # def show
-  #   @availability = current_user.availability.find(availability_params)
-
-  #   render json: @availability, status: :ok
-  # end
 
   def create
     @availability = @match.availabilities.new(availability_params)
@@ -81,13 +77,16 @@ class AvailabilitiesController < ApplicationController
     players.each do |player|
       Notification.create!(
         user: player,
+        match: @match,
         title: "Availability Reminder",
         message: "Please confirm your availability for the match against #{@match.opponent}.",
         notification_type: "availability_reminder"
       )
     end
 
-    @match.update!(availability_reminder_sent_at: Time.current)
+    @match.update!(
+      availability_reminder_sent_at: Time.current
+    )
 
     render json: {
       message: "Availability reminder sent",
@@ -95,16 +94,31 @@ class AvailabilitiesController < ApplicationController
     }, status: :ok
   end
 
+  def mine
+    availability = @match.availabilities.find_by(
+      user: current_user
+    )
+
+    if availability
+      render json: availability, status: :ok
+    else
+      render json: {
+        error: "You have not submitted your availability for this match"
+      }, status: :not_found
+    end
+  end
+
   private
 
   def set_match
-  @team = Team.find(params[:team_id])
-  @match = @team.matches.find(params[:match_id])
-end
+    @team = Team.find(params[:team_id])
+    @match = @team.matches.find(params[:match_id])
+  end
 
   def set_availability
     @availability = current_user.availabilities.find(params[:id])
     @match = @availability.match
+    @team = @match.team
   end
 
   def approved_player
@@ -114,7 +128,8 @@ end
       status: "approved"
     )
 
-    return if current_user.account_type == "player" && player_membership
+    return if current_user.account_type == "player" &&
+              player_membership
 
     render json: {
       error: "Only an approved player of this team can perform this action"
@@ -128,10 +143,15 @@ end
       status: "approved"
     )
 
-    return if current_user.account_type == "manager" && manager_membership
+    approved_manager =
+      current_user.account_type == "manager" &&
+      current_user.manager_verification_status == "approved" &&
+      manager_membership
+
+    return if approved_manager
 
     render json: {
-      error: "Only an approved manager of this team can view availability responses"
+      error: "Only an approved manager of this team can perform this action"
     }, status: :forbidden
   end
 
@@ -154,4 +174,5 @@ end
   def availability_params
     params.require(:availability).permit(:status)
   end
+
 end

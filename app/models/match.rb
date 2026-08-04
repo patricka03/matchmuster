@@ -15,6 +15,7 @@ class Match < ApplicationRecord
   validates :match_type, inclusion: { in: MATCH_TYPES }
 
   validate :kickoff_time_cannot_be_in_the_past, on: :create
+  validates :description, length: { maximum: 500 }, allow_blank: true
 
   private
 
@@ -24,6 +25,7 @@ class Match < ApplicationRecord
 
   def kickoff_time_cannot_be_in_the_past
     return if kickoff_time.blank?
-     errors.add(:kickoff_time, "cannot be in the past") if kickoff_time < Time.current
+
+    errors.add(:kickoff_time, "cannot be in the past") if kickoff_time < Time.current
   end
 end

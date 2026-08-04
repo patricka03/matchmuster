@@ -1,5 +1,7 @@
 class MatchPayment < ApplicationRecord
   PAYMENT_STATUSES = %w[pending paid waived refunded].freeze
+  
+  attribute :status, :string, default: "pending"
 
   belongs_to :user
   belongs_to :match
@@ -15,7 +17,7 @@ class MatchPayment < ApplicationRecord
 
   def user_must_be_approved_team_member
     return if user.blank? || match.blank?
-    
+
     approved_member = user.team_memberships.exists?(team_id: match.team_id, status: "approved")
 
     return if approved_member

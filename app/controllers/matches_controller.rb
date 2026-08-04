@@ -6,7 +6,7 @@ class MatchesController < ApplicationController
   before_action :authorise_approved_manager, only: %i[create update destroy]
 
   def index
-    @matches = @team.matches
+    @matches = @team.matches.order(:kickoff_time)
 
     render json: @matches, status: :ok
   end
@@ -98,7 +98,8 @@ class MatchesController < ApplicationController
       :opponent,
       :match_type,
       :location,
-      :kickoff_time
+      :kickoff_time,
+      :description
     )
   end
 
@@ -115,6 +116,7 @@ class MatchesController < ApplicationController
     approved_player_memberships.each do |membership|
       Notification.create!(
         user: membership.user,
+        match: @match,
         title: "New Fixture",
         message: "#{fixture_description}. Please confirm your availability.",
         notification_type: "fixture_created"
@@ -126,6 +128,7 @@ class MatchesController < ApplicationController
     approved_player_memberships.each do |membership|
       Notification.create!(
         user: membership.user,
+        match: @match,
         title: "Fixture Updated",
         message: fixture_update_message,
         notification_type: "fixture_updated"
@@ -137,6 +140,7 @@ class MatchesController < ApplicationController
     approved_player_memberships.each do |membership|
       Notification.create!(
         user: membership.user,
+        match: @match,
         title: "Fixture Cancelled",
         message: "The fixture against #{@match.opponent} has been cancelled.",
         notification_type: "fixture_cancelled"

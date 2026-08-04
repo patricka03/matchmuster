@@ -1,5 +1,5 @@
 class User < ApplicationRecord
-before_validation :set_manager_verification_status, on: :create
+  before_validation :set_manager_verification_status, on: :create
 
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable

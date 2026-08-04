@@ -1,16 +1,20 @@
 class TeamMembershipsController < ApplicationController
   before_action :authenticate_user!
-
   before_action :set_team, only: %i[index create]
+  before_action :set_team_membership, only: %i[approve reject destroy]
 
-  before_action :set_team_membership,
-                only: %i[approve reject destroy]
-
-  before_action :authorize_team_manager!,
-                only: %i[index approve reject]
+  before_action :authorize_team_member!, only: %i[index]
+  before_action :authorize_team_manager!, only: %i[approve reject]
+  before_action :authorize_player!, only: %i[create]
 
   def index
     @team_memberships = @team.team_memberships.includes(:user)
+
+    unless approved_manager_of_team?
+      @team_memberships = @team_memberships.where(
+        status: "approved"
+      )
+    end
 
     render json: @team_memberships.as_json(
       include: {
@@ -27,6 +31,7 @@ class TeamMembershipsController < ApplicationController
     )
 
     @team_membership.user = current_user
+    @team_membership.role = "player"
     @team_membership.status = "pending"
 
     if @team_membership.save
@@ -59,8 +64,11 @@ class TeamMembershipsController < ApplicationController
   end
 
   def destroy
-    if @team_membership.user == current_user || manager_of_membership_team?
-      @team_membership.destroy
+    if @team_membership.user == current_user ||
+        approved_manager_of_team?
+
+      @team_membership.destroy!
+
       head :no_content
     else
       render json: {
@@ -73,19 +81,50 @@ class TeamMembershipsController < ApplicationController
 
   def set_team
     @team = Team.find(params[:team_id])
+  rescue ActiveRecord::RecordNotFound
+    render json: {
+      error: "Team not found"
+    }, status: :not_found
   end
 
   def set_team_membership
     @team_membership = TeamMembership.find(params[:id])
     @team = @team_membership.team
+  rescue ActiveRecord::RecordNotFound
+    render json: {
+      error: "Team membership not found"
+    }, status: :not_found
+  end
+
+  def authorize_team_member!
+    return if approved_team_member?
+
+    render json: {
+      error: "You are not authorised to view this team's squad"
+    }, status: :forbidden
   end
 
   def authorize_team_manager!
     return if approved_manager_of_team?
 
     render json: {
-      error: "You are not authorised to view or manage this team's memberships"
+      error: "You are not authorised to manage this team's memberships"
     }, status: :forbidden
+  end
+
+  def authorize_player!
+    return if current_user.account_type == "player"
+
+    render json: {
+      error: "Only players can request to join a team"
+    }, status: :forbidden
+  end
+
+  def approved_team_member?
+    current_user.team_memberships.exists?(
+      team_id: @team.id,
+      status: "approved"
+    )
   end
 
   def approved_manager_of_team?
@@ -98,19 +137,8 @@ class TeamMembershipsController < ApplicationController
       )
   end
 
-  def manager_of_membership_team?
-    current_user.account_type == "manager" &&
-      current_user.manager_verification_status == "approved" &&
-      current_user.team_memberships.exists?(
-        team_id: @team_membership.team_id,
-        role: "manager",
-        status: "approved"
-      )
-  end
-
   def team_membership_params
     params.require(:team_membership).permit(
-      :role,
       :preferred_position
     )
   end

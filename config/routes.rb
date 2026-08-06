@@ -44,6 +44,9 @@ Rails.application.routes.draw do
   resources :notifications, only: %i[index update destroy]
 
   resources :team_memberships, only: %i[destroy] do
+    collection do
+      post :join
+    end
     member do
       patch :approve
       patch :reject

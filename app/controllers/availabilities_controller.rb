@@ -6,31 +6,52 @@ class AvailabilitiesController < ApplicationController
   before_action :approved_team_manager, only: %i[index remind]
 
   def index
-    availabilities = @match.availabilities.includes(
-      user: :team_memberships
-    )
+  approved_memberships =
+    @team.team_memberships
+         .includes(:user)
+         .where(role: "player", status: "approved")
 
-    response = availabilities.map do |availability|
-      membership = availability.user.team_memberships.find do |team_membership|
-        team_membership.team_id == @match.team_id &&
-          team_membership.role == "player" &&
-          team_membership.status == "approved"
-      end
+  availability_by_user_id =
+    @match.availabilities.index_by(&:user_id)
 
-      {
-        id: availability.id,
-        status: availability.status,
-        player: {
-          id: availability.user.id,
-          first_name: availability.user.first_name,
-          last_name: availability.user.last_name,
-          preferred_position: membership&.preferred_position
-        }
-      }
-    end
+  players = approved_memberships.map do |membership|
+    user = membership.user
+    availability = availability_by_user_id[user.id]
 
-    render json: response, status: :ok
+    {
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      preferred_position: membership.preferred_position,
+      availability_id: availability&.id,
+      status: availability&.status || "pending"
+    }
   end
+
+  render json: {
+    match: {
+      id: @match.id,
+      opponent: @match.opponent,
+      match_type: @match.match_type,
+      location: @match.location,
+      kickoff_time: @match.kickoff_time
+    },
+    players: players,
+    summary: {
+      available: players.count do |player|
+        player[:status] == "available"
+      end,
+      unavailable: players.count do |player|
+        player[:status] == "unavailable"
+      end,
+      awaiting_response: players.count do |player|
+        player[:status] == "pending"
+      end,
+      total_players: players.count
+    }
+  }, status: :ok
+end
 
   def create
     @availability = @match.availabilities.new(availability_params)
@@ -60,23 +81,23 @@ class AvailabilitiesController < ApplicationController
   end
 
   def remind
-    if @match.availability_reminder_sent_at.present?
-      return render json: {
-        error: "An availability reminder has already been sent for this match"
-      }, status: :unprocessable_entity
-    end
+    responded_user_ids = @match.availabilities.select(:user_id)
 
-    players = players_without_availability
+    players_to_remind =
+      @match.team.team_memberships
+            .includes(:user)
+            .where(role: "player", status: "approved")
+            .where.not(user_id: responded_user_ids)
 
-    if players.empty?
+    if players_to_remind.none?
       return render json: {
-        message: "Every approved player has already submitted their availability"
+        message: "All approved players have already updated their availability"
       }, status: :ok
     end
 
-    players.each do |player|
+    players_to_remind.each do |membership|
       Notification.create!(
-        user: player,
+        user: membership.user,
         match: @match,
         title: "Availability Reminder",
         message: "Please confirm your availability for the match against #{@match.opponent}.",
@@ -90,7 +111,7 @@ class AvailabilitiesController < ApplicationController
 
     render json: {
       message: "Availability reminder sent",
-      players_notified: players.size
+      recipients: players_to_remind.count
     }, status: :ok
   end
 

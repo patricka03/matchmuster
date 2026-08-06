@@ -52,15 +52,26 @@ class MatchesController < ApplicationController
   private
 
   def authorize_team_member!
-    approved_member = current_user.team_memberships.exists?(
+    membership = current_user.team_memberships.find_by(
       team_id: @team.id,
       status: "approved"
     )
 
-    return if approved_member
+    authorised =
+      case current_user.account_type
+      when "player"
+        membership&.role == "player"
+      when "manager"
+        membership&.role == "manager" &&
+          current_user.manager_verification_status == "approved"
+      else
+        false
+      end
+
+    return if authorised
 
     render json: {
-      error: "You are not an approved member of this team"
+      error: "You are not authorised to view this fixture"
     }, status: :forbidden
   end
 

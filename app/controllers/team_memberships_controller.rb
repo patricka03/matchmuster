@@ -5,7 +5,7 @@ class TeamMembershipsController < ApplicationController
 
   before_action :authorize_team_member!, only: %i[index]
   before_action :authorize_team_manager!, only: %i[approve reject]
-  before_action :authorize_player!, only: %i[create]
+  before_action :authorize_player!, only: %i[create join]
 
   def index
     @team_memberships = @team.team_memberships.includes(:user)
@@ -36,6 +36,52 @@ class TeamMembershipsController < ApplicationController
 
     if @team_membership.save
       render json: @team_membership, status: :created
+    else
+      render json: {
+        errors: @team_membership.errors.full_messages
+      }, status: :unprocessable_entity
+    end
+  end
+
+  def join
+    invite_code = join_team_params[:invite_code].strip
+
+    @team = Team.find_by(invite_code: invite_code)
+
+    unless @team
+      render json: {
+        error: "Invalid team invite code"
+      }, status: :not_found
+
+      return
+    end
+
+    existing_membership = current_user.team_memberships.find_by(
+      team: @team
+    )
+
+    if existing_membership
+      render json: {
+        error: "You have already requested to join this team",
+        membership_status: existing_membership.status
+      }, status: :unprocessable_entity
+
+      return
+    end
+
+    @team_membership = @team.team_memberships.new(
+      user: current_user,
+      role: "player",
+      status: "pending",
+      preferred_position: join_team_params[:preferred_position]
+    )
+
+    if @team_membership.save
+      render json: {
+        message: "Your request to join the team has been sent",
+        team: @team,
+        team_membership: @team_membership
+      }, status: :created
     else
       render json: {
         errors: @team_membership.errors.full_messages
@@ -121,10 +167,16 @@ class TeamMembershipsController < ApplicationController
   end
 
   def approved_team_member?
-    current_user.team_memberships.exists?(
-      team_id: @team.id,
-      status: "approved"
-    )
+    if current_user.account_type == "manager"
+      return approved_manager_of_team?
+    end
+
+    current_user.account_type == "player" &&
+      current_user.team_memberships.exists?(
+        team_id: @team.id,
+        role: "player",
+        status: "approved"
+      )
   end
 
   def approved_manager_of_team?
@@ -139,6 +191,13 @@ class TeamMembershipsController < ApplicationController
 
   def team_membership_params
     params.require(:team_membership).permit(
+      :preferred_position
+    )
+  end
+
+  def join_team_params
+    params.require(:team_membership).permit(
+      :invite_code,
       :preferred_position
     )
   end

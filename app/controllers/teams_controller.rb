@@ -1,39 +1,37 @@
 class TeamsController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_team,
-                only: %i[show update destroy stripe_connect stripe_status]
-  before_action :require_manager!, only: %i[create]
-  before_action :require_team_manager!,
-                only: %i[update destroy stripe_connect stripe_status]
+
+  before_action :set_team, only: %i[ show update destroy stripe_connect stripe_status ]
+
+  before_action :require_manager!, only: :create
+  before_action :require_team_member!, only: :show
+
+  before_action :require_team_manager!, only: %i[ update destroy stripe_connect stripe_status]
 
   def index
-    teams = current_user.teams
+    teams = Team.joins(:team_memberships).where(
+              team_memberships: {
+                user_id: current_user.id,
+                status: "approved"
+              }
+            )
 
-    response = teams.map do |team|
-      team_data = {
-        id: team.id,
-        name: team.name,
-        description: team.description
-      }
-
-      membership = team.team_memberships.find_by(
-        user: current_user,
-        role: "manager",
-        status: "approved"
+    if current_user.account_type == "manager"
+      teams = teams.where(
+        team_memberships: {
+          role: "manager"
+        }
       )
-
-      if current_user.account_type == "manager" && membership.present?
-        team_data[:invite_code] = team.invite_code
-      end
-
-      team_data
     end
 
-    render json: response, status: :ok
+    teams = teams.distinct
+
+    render json: teams.map { |team| team_response(team) },
+          status: :ok
   end
 
   def show
-    render json: @team, status: :ok
+    render json: team_response(@team), status: :ok
   end
 
   def create
@@ -51,7 +49,7 @@ class TeamsController < ApplicationController
       )
     end
 
-    render json: @team, status: :created
+    render json: team_response(@team), status: :created
   rescue ActiveRecord::RecordInvalid => error
     render json: {
       errors: error.record.errors.full_messages
@@ -60,7 +58,7 @@ class TeamsController < ApplicationController
 
   def update
     if @team.update(team_params)
-      render json: @team, status: :ok
+      render json: team_response(@team), status: :ok
     else
       render json: {
         errors: @team.errors.full_messages
@@ -91,7 +89,9 @@ class TeamsController < ApplicationController
         }
       )
 
-      @team.update!(stripe_account_id: stripe_account.id)
+      @team.update!(
+        stripe_account_id: stripe_account.id
+      )
     end
 
     account_link = Stripe::AccountLink.create(
@@ -120,16 +120,20 @@ class TeamsController < ApplicationController
       }, status: :ok
     end
 
-    stripe_account = Stripe::Account.retrieve(@team.stripe_account_id)
+    stripe_account =
+      Stripe::Account.retrieve(@team.stripe_account_id)
 
     render json: {
       connected: true,
       charges_enabled: stripe_account.charges_enabled,
       payouts_enabled: stripe_account.payouts_enabled,
       details_submitted: stripe_account.details_submitted,
-      disabled_reason: stripe_account.requirements.disabled_reason,
-      currently_due: stripe_account.requirements.currently_due,
-      pending_verification: stripe_account.requirements.pending_verification
+      disabled_reason:
+        stripe_account.requirements.disabled_reason,
+      currently_due:
+        stripe_account.requirements.currently_due,
+      pending_verification:
+        stripe_account.requirements.pending_verification
     }, status: :ok
   rescue Stripe::StripeError => error
     render json: {
@@ -148,7 +152,36 @@ class TeamsController < ApplicationController
   end
 
   def team_params
-    params.require(:team).permit(:name, :invite_code, :description)
+    params.require(:team).permit(
+      :name,
+      :description
+    )
+  end
+
+  def approved_membership(team)
+    team.team_memberships.find_by(
+      user: current_user,
+      status: "approved"
+    )
+  end
+
+  def team_response(team)
+    membership = approved_membership(team)
+
+    response = {
+      id: team.id,
+      name: team.name,
+      description: team.description,
+      membership_id: membership&.id,
+      membership_role: membership&.role
+    }
+
+    if current_user.account_type == "manager" &&
+      membership&.role == "manager"
+      response[:invite_code] = team.invite_code
+    end
+
+    response
   end
 
   def require_manager!
@@ -160,17 +193,23 @@ class TeamsController < ApplicationController
     }, status: :forbidden
   end
 
-  def require_team_manager!
-    membership = @team.team_memberships.find_by(
-      user: current_user,
-      role: "manager",
-      status: "approved"
-    )
-
-    return if membership
+  def require_team_member!
+    return if approved_membership(@team)
 
     render json: {
-      error: "Only the managers of this team can edit or delete this team."
+      error: "You are not an approved member of this team."
+    }, status: :forbidden
+  end
+
+  def require_team_manager!
+    membership = approved_membership(@team)
+
+    return if current_user.account_type == "manager" &&
+              current_user.manager_verification_status == "approved" &&
+              membership&.role == "manager"
+
+    render json: {
+      error: "Only approved team managers can manage this team."
     }, status: :forbidden
   end
 end

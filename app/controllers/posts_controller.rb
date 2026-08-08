@@ -136,7 +136,7 @@ class PostsController < ApplicationController
 
       Notification.create!(
         user: membership.user,
-        match: @match,
+        post: @post,
         title: post_notification_title,
         message: post_notification_message,
         notification_type: post_notification_type

@@ -1,12 +1,12 @@
 class TeamsController < ApplicationController
   before_action :authenticate_user!
 
-  before_action :set_team, only: %i[ show update destroy stripe_connect stripe_status ]
+  before_action :set_team, only: %i[ show update destroy stripe_connect stripe_status stripe_dashboard ]
 
   before_action :require_manager!, only: :create
   before_action :require_team_member!, only: :show
 
-  before_action :require_team_manager!, only: %i[ update destroy stripe_connect stripe_status]
+  before_action :require_team_manager!, only: %i[ update destroy stripe_connect stripe_status stripe_dashboard ]
 
   def index
     teams = Team.joins(:team_memberships).where(
@@ -81,8 +81,12 @@ class TeamsController < ApplicationController
         country: "GB",
         email: current_user.email,
         capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true }
+          card_payments: {
+            requested: true
+          },
+          transfers: {
+            requested: true
+          }
         },
         metadata: {
           team_id: @team.id
@@ -94,10 +98,15 @@ class TeamsController < ApplicationController
       )
     end
 
+    frontend_url =
+      ENV.fetch("FRONTEND_URL", "http://localhost:5173")
+
     account_link = Stripe::AccountLink.create(
       account: @team.stripe_account_id,
-      refresh_url: "http://localhost:5173/teams/#{@team.id}/stripe/refresh",
-      return_url: "http://localhost:5173/teams/#{@team.id}/stripe/return",
+      refresh_url:
+        "#{frontend_url}/dashboard?stripe=refresh&team_id=#{@team.id}",
+      return_url:
+        "#{frontend_url}/dashboard?stripe=return&team_id=#{@team.id}",
       type: "account_onboarding"
     )
 
@@ -114,26 +123,56 @@ class TeamsController < ApplicationController
     if @team.stripe_account_id.blank?
       return render json: {
         connected: false,
+        setup_complete: false,
         charges_enabled: false,
         payouts_enabled: false,
-        details_submitted: false
+        details_submitted: false,
+        currently_due: [],
+        pending_verification: []
       }, status: :ok
     end
 
     stripe_account =
       Stripe::Account.retrieve(@team.stripe_account_id)
 
+    setup_complete =
+      stripe_account.details_submitted &&
+      stripe_account.charges_enabled &&
+      stripe_account.payouts_enabled
+
     render json: {
       connected: true,
+      setup_complete: setup_complete,
       charges_enabled: stripe_account.charges_enabled,
       payouts_enabled: stripe_account.payouts_enabled,
       details_submitted: stripe_account.details_submitted,
       disabled_reason:
         stripe_account.requirements.disabled_reason,
       currently_due:
-        stripe_account.requirements.currently_due,
+        stripe_account.requirements.currently_due || [],
       pending_verification:
-        stripe_account.requirements.pending_verification
+        stripe_account.requirements.pending_verification || []
+    }, status: :ok
+  rescue Stripe::StripeError => error
+    render json: {
+      error: error.message
+    }, status: :unprocessable_entity
+  end
+
+  def stripe_dashboard
+    if @team.stripe_account_id.blank?
+      return render json: {
+        error: "This team has not connected a Stripe account."
+      }, status: :unprocessable_entity
+    end
+
+    login_link =
+      Stripe::Account.create_login_link(
+        @team.stripe_account_id
+      )
+
+    render json: {
+      dashboard_url: login_link.url
     }, status: :ok
   rescue Stripe::StripeError => error
     render json: {

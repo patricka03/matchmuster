@@ -6,6 +6,7 @@ module Users
       build_resource(sign_up_params)
 
       if resource.save
+        UserMailer.welcome_email(resource).deliver_later
         render json: {
           message: "Account created successfully.",
           user: {

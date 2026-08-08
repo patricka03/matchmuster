@@ -8,6 +8,7 @@ class User < ApplicationRecord
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :jwt_authenticatable, jwt_revocation_strategy: self
 
+
   self.skip_session_storage = [:http_auth, :params_auth, :jwt]
 
   has_many :team_memberships, dependent: :destroy
@@ -29,6 +30,8 @@ class User < ApplicationRecord
 
   validates :manager_verification_status, presence: true, inclusion: { in: %w[pending approved rejected]},  if: :manager?
 
+  after_update_commit :send_manager_approval_email, if: :saved_change_to_manager_verification_status?
+
   def manager?
     account_type == "manager"
   end
@@ -39,4 +42,11 @@ class User < ApplicationRecord
     self.manager_verification_status = "pending" if manager?
   end
 
+
+
+  def send_manager_approval_email
+    return unless manager_verification_status == "approved"
+
+    UserMailer.manager_approved_email(self).deliver_later
+  end
 end

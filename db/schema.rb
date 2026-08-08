@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_04_213826) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_06_195223) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -46,6 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_213826) do
     t.datetime "availability_reminder_sent_at"
     t.datetime "created_at", null: false
     t.text "description"
+    t.string "formation"
     t.datetime "kickoff_time"
     t.string "location"
     t.string "match_type"
@@ -57,14 +58,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_213826) do
 
   create_table "notifications", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "kept_at"
     t.bigint "match_id"
+    t.bigint "match_payment_id"
     t.text "message"
     t.string "notification_type"
+    t.datetime "opened_at"
+    t.bigint "post_id"
     t.boolean "read", default: false, null: false
     t.string "title"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["match_id"], name: "index_notifications_on_match_id"
+    t.index ["match_payment_id"], name: "index_notifications_on_match_payment_id"
+    t.index ["post_id"], name: "index_notifications_on_post_id"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
@@ -95,9 +102,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_213826) do
   create_table "squad_selections", force: :cascade do |t|
     t.boolean "captain", default: false, null: false
     t.datetime "created_at", null: false
-    t.boolean "is_corner_taker", default: false, null: false
     t.boolean "is_freekick_taker", default: false, null: false
+    t.boolean "is_left_corner_taker", default: false, null: false
     t.boolean "is_penalty_taker", default: false, null: false
+    t.boolean "is_right_corner_taker", default: false, null: false
     t.bigint "match_id", null: false
     t.string "position"
     t.string "selection_type"
@@ -155,7 +163,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_04_213826) do
   add_foreign_key "match_payments", "matches"
   add_foreign_key "match_payments", "users"
   add_foreign_key "matches", "teams"
+  add_foreign_key "notifications", "match_payments"
   add_foreign_key "notifications", "matches"
+  add_foreign_key "notifications", "posts"
   add_foreign_key "notifications", "users"
   add_foreign_key "post_reads", "posts"
   add_foreign_key "post_reads", "users"

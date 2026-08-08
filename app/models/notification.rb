@@ -18,6 +18,9 @@ class Notification < ApplicationRecord
 
   belongs_to :user
   belongs_to :match, optional: true
+  belongs_to :post, optional: true
+  belongs_to :match_payment, optional: true
+
 
   validates :title, :message, :notification_type, presence: true
   validates :notification_type, inclusion: { in: NOTIFICATION_TYPES }

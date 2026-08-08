@@ -30,4 +30,7 @@
 
 # Ignore key files for decrypting credentials and more.
 /config/*.key
+/config/credentials/*.key
 
+# Ignore installed Node packages.
+/node_modules/

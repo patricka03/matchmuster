@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   # devise_for :users
-  devise_for :users, controllers: { registrations: "users/registrations", sessions: "users/sessions"}
+  devise_for :users, controllers: { registrations: "users/registrations", sessions: "users/sessions", passwords: "users/passwords"}
   get "users/me", to: "users#me"
   post "stripe/webhook", to: "stripe_webhooks#create"
 
@@ -8,6 +8,7 @@ Rails.application.routes.draw do
     member do
       post :stripe_connect
       get :stripe_status
+      post :stripe_dashboard
     end
 
     resources :posts, only: %i[index show create update destroy] do

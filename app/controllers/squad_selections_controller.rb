@@ -91,7 +91,8 @@ class SquadSelectionsController < ApplicationController
       :selection_type,
       :position,
       :captain,
-      :is_corner_taker,
+      :is_left_corner_taker,
+      :is_right_corner_taker,
       :is_penalty_taker,
       :is_freekick_taker
     )

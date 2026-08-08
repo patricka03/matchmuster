@@ -10,14 +10,15 @@ class SquadSelection < ApplicationRecord
 
   validates :position, presence: true, inclusion: { in: POSITIONS }
 
-  validates :user_id, uniqueness: {scope: :match_id, message: "has already been selected for this match"}
+  validates :user_id, uniqueness: { scope: :match_id, message: "has already been selected for this match" }
 
   validate :player_belongs_to_match_team
   validate :player_is_available
   validate :maximum_eleven_starters
   validate :only_one_captain
+  validate :only_one_left_corner_taker
+  validate :only_one_right_corner_taker
   validate :only_one_penalty_taker
-  validate :only_one_corner_taker
   validate :only_one_freekick_taker
 
   private
@@ -32,7 +33,10 @@ class SquadSelection < ApplicationRecord
     )
 
     unless approved_member
-      errors.add(:user, "must be an approved player of this team")
+      errors.add(
+        :user,
+        "must be an approved player of this team"
+      )
     end
   end
 
@@ -46,7 +50,10 @@ class SquadSelection < ApplicationRecord
     )
 
     unless available
-      errors.add(:user, "must be available for this match")
+      errors.add(
+        :user,
+        "must be available for this match"
+      )
     end
   end
 
@@ -59,7 +66,10 @@ class SquadSelection < ApplicationRecord
                     .where.not(id: id)
 
     if starters.count >= 11
-      errors.add(:selection_type, "cannot exceed 11 starters")
+      errors.add(
+        :selection_type,
+        "cannot exceed 11 starters"
+      )
     end
   end
 
@@ -67,8 +77,41 @@ class SquadSelection < ApplicationRecord
     return unless captain?
     return if match.blank?
 
-    if match.squad_selections.where(captain: true).where.not(id: id).exists?
-      errors.add(:captain, "has already been selected for this match")
+    captain_exists = match.squad_selections.where(captain: true).where.not(id: id).exists?
+
+    if captain_exists
+      errors.add(
+        :captain,
+        "has already been selected for this match"
+      )
+    end
+  end
+
+  def only_one_left_corner_taker
+    return unless is_left_corner_taker?
+    return if match.blank?
+
+    left_corner_taker_exists = match.squad_selections.where(is_left_corner_taker: true).where.not(id: id).exists?
+
+    if left_corner_taker_exists
+      errors.add(
+        :is_left_corner_taker,
+        "has already been selected for this match"
+      )
+    end
+  end
+
+  def only_one_right_corner_taker
+    return unless is_right_corner_taker?
+    return if match.blank?
+
+    right_corner_taker_exists = match.squad_selections.where(is_right_corner_taker: true).where.not(id: id).exists?
+
+    if right_corner_taker_exists
+      errors.add(
+        :is_right_corner_taker,
+        "has already been selected for this match"
+      )
     end
   end
 
@@ -76,27 +119,11 @@ class SquadSelection < ApplicationRecord
     return unless is_penalty_taker?
     return if match.blank?
 
-    if match.squad_selections
-            .where(is_penalty_taker: true)
-            .where.not(id: id)
-            .exists?
+    penalty_taker_exists = match.squad_selections.where(is_penalty_taker: true).where.not(id: id).exists?
+
+    if penalty_taker_exists
       errors.add(
         :is_penalty_taker,
-        "has already been selected for this match"
-      )
-    end
-  end
-
-  def only_one_corner_taker
-    return unless is_corner_taker?
-    return if match.blank?
-
-    if match.squad_selections
-            .where(is_corner_taker: true)
-            .where.not(id: id)
-            .exists?
-      errors.add(
-        :is_corner_taker,
         "has already been selected for this match"
       )
     end
@@ -106,10 +133,9 @@ class SquadSelection < ApplicationRecord
     return unless is_freekick_taker?
     return if match.blank?
 
-    if match.squad_selections
-            .where(is_freekick_taker: true)
-            .where.not(id: id)
-            .exists?
+    freekick_taker_exists = match.squad_selections.where(is_freekick_taker: true).where.not(id: id).exists?
+
+    if freekick_taker_exists
       errors.add(
         :is_freekick_taker,
         "has already been selected for this match"

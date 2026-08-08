@@ -1,5 +1,21 @@
 class Match < ApplicationRecord
   MATCH_TYPES = %w[league cup friendly].freeze
+  FORMATIONS = [
+    "4-4-2",
+    "4-4-2 Diamond",
+    "4-3-3",
+    "4-2-3-1",
+    "4-1-4-1",
+    "4-5-1",
+    "4-2-4",
+    "3-5-2",
+    "3-4-3",
+    "3-4-2-1",
+    "3-1-4-2",
+    "5-3-2",
+    "5-4-1",
+    "5-2-3"
+  ].freeze
 
   before_validation :normalise_match_type
 
@@ -9,10 +25,12 @@ class Match < ApplicationRecord
   has_many :users, through: :availabilities
   has_many :squad_selections, dependent: :destroy
   has_many :match_payments, dependent: :destroy
+  has_many :notifications, dependent: :nullify
 
 
   validates :opponent, :match_type, :location, :kickoff_time, presence: true
   validates :match_type, inclusion: { in: MATCH_TYPES }
+  validates :formation, inclusion: { in: FORMATIONS }, allow_nil: true
 
   validate :kickoff_time_cannot_be_in_the_past, on: :create
   validates :description, length: { maximum: 500 }, allow_blank: true

@@ -42,9 +42,10 @@ class MatchesController < ApplicationController
   end
 
   def destroy
-    create_fixture_cancelled_notifications
-
-    @match.destroy
+    Match.transaction do
+      create_fixture_cancelled_notifications
+      @match.destroy!
+    end
 
     head :no_content
   end

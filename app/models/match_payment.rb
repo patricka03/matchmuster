@@ -1,10 +1,12 @@
 class MatchPayment < ApplicationRecord
   PAYMENT_STATUSES = %w[pending paid waived refunded].freeze
-  
+
   attribute :status, :string, default: "pending"
 
   belongs_to :user
   belongs_to :match
+
+  has_many :notifications, dependent: :nullify
 
   validates :amount_pence, presence: true, numericality: { only_integer: true, greater_than: 0 }
   validates :status, presence: true, inclusion: { in: PAYMENT_STATUSES }

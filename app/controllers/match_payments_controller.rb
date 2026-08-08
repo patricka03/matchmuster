@@ -299,7 +299,9 @@ class MatchPaymentsController < ApplicationController
     @match_payment.user.notifications.create!(
       title: "Match payment requested",
       message: "You have been requested to pay £#{formatted_amount} for the upcoming match.",
-      notification_type: "match_payment_requested"
+      notification_type: "match_payment_requested",
+      match_payment_id: @match_payment.id,
+      match_id: @match_payment.match_id,
     )
   end
 

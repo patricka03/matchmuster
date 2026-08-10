@@ -3,14 +3,85 @@ class UsersController < ApplicationController
 
   def me
     render json: {
-      user: {
-        id: current_user.id,
-        first_name: current_user.first_name,
-        last_name: current_user.last_name,
-        email: current_user.email,
-        account_type: current_user.account_type,
-        manager_verification_status: current_user.manager_verification_status
-      }
+      user: user_json(current_user)
     }, status: :ok
   end
+
+  def update_profile
+    if current_user.update(profile_params)
+      render json: {
+        message: "Profile updated successfully",
+        user: user_json(current_user)
+      }, status: :ok
+    else
+      render json: {
+        errors: current_user.errors.full_messages
+      }, status: :unprocessable_entity
+    end
+  end
+
+  def update_avatar
+    if params[:avatar].blank?
+      return render json: {
+        error: "Please select an image"
+      }, status: :unprocessable_entity
+    end
+
+    current_user.avatar.attach(params[:avatar])
+
+    render json: {
+      message: "Profile picture updated successfully",
+      avatar_url: url_for(current_user.avatar),
+      user: user_json(current_user)
+    }, status: :ok
+  end
+
+  private
+
+  def profile_params
+    params.require(:user).permit(
+      :first_name,
+      :last_name,
+      :email
+    )
+  end
+
+  def user_json(user)
+    {
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      account_type: user.account_type,
+      manager_verification_status:
+        user.manager_verification_status,
+      avatar_url: user.avatar.attached? ?
+        url_for(user.avatar) :
+        nil
+    }
+  end
+
+  # def update_password
+  #   if current_user.update_with_password(password_params)
+  #     current_user.update_column(:jti, SecureRandom.uuid)
+
+  #     render json: {
+  #       message: "Password updated successfully. Please log in again."
+  #     }, status: :ok
+  #   else
+  #     render json: {
+  #       errors: current_user.errors.full_messages
+  #     }, status: :unprocessable_entity
+  #   end
+  # end
+
+  private
+
+  # def password_params
+  #   params.require(:user).permit(
+  #     :current_password,
+  #     :password,
+  #     :password_confirmation
+  #   )
+  # end
 end

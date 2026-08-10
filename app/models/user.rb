@@ -25,6 +25,8 @@ class User < ApplicationRecord
 
   has_many :read_posts, through: :post_reads, source: :post
 
+  has_one_attached :avatar
+
   validates :first_name, :last_name, :account_type, presence: true
   validates :account_type, inclusion: { in: %w[player manager] }
 

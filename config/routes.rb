@@ -2,6 +2,9 @@ Rails.application.routes.draw do
   # devise_for :users
   devise_for :users, controllers: { registrations: "users/registrations", sessions: "users/sessions", passwords: "users/passwords"}
   get "users/me", to: "users#me"
+  patch "/users/avatar", to: "users#update_avatar"
+  patch "/users/profile", to: "users#update_profile"
+  # patch "/users/change_password", to: "users#update_password"
   post "stripe/webhook", to: "stripe_webhooks#create"
 
   resources :teams do

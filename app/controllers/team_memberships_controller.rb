@@ -5,7 +5,7 @@ class TeamMembershipsController < ApplicationController
 
   before_action :authorize_team_member!, only: %i[index]
   before_action :authorize_team_manager!, only: %i[approve reject]
-  before_action :authorize_player!, only: %i[create join]
+  before_action :authorize_player!, only: %i[create join update_preferred_position]
 
   def index
     @team_memberships = @team.team_memberships.includes(:user)
@@ -123,6 +123,27 @@ class TeamMembershipsController < ApplicationController
     end
   end
 
+  def update_preferred_position
+    membership = current_user.team_memberships.find_by(role: "player")
+
+    unless membership
+      return render json: {
+        error: "You do not have a team membership"
+      }, status: :not_found
+    end
+
+    if membership.update(preferred_position_params)
+      render json: {
+        message: "Preferred position updated successfully",
+        preferred_position: membership.preferred_position
+      }, status: :ok
+    else
+      render json: {
+        errors: membership.errors.full_messages
+      }, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def set_team
@@ -200,5 +221,9 @@ class TeamMembershipsController < ApplicationController
       :invite_code,
       :preferred_position
     )
+  end
+
+  def preferred_position_params
+    params.require(:team_membership).permit(:preferred_position)
   end
 end

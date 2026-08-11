@@ -3,12 +3,13 @@ class NotificationsController < ApplicationController
   before_action :set_notification, only: %i[update destroy]
 
   def index
-    @notifications = current_user.notifications.includes(:match, post: :user).order(created_at: :desc)
+    @notifications = current_user.notifications
+                                 .includes(:match, { post: :user }, match_payment: :match)
+                                 .order(created_at: :desc)
 
     render json: @notifications.map { |notification|
       notification.as_json.merge(
-        "team_id" => notification.post&.team_id ||
-                    notification.match&.team_id,
+        "team_id" => notification_team_id(notification),
         "post" => post_json(notification.post)
       )
     }, status: :ok
@@ -23,8 +24,7 @@ class NotificationsController < ApplicationController
     end
 
     if notification_params.key?(:kept)
-      attributes[:kept_at] =
-        notification_params[:kept] == true ? Time.current : nil
+      attributes[:kept_at] = notification_params[:kept] == true ? Time.current : nil
     end
 
     if @notification.update(attributes)
@@ -38,18 +38,10 @@ class NotificationsController < ApplicationController
 
   def destroy
     @notification.destroy
-
     head :no_content
   end
 
   private
-
-  # def post_params
-  #   permitted = params.require(:post).permit(:title, :content, :post_type, :pinned)
-  #   permitted.delete(:pinned) unless approved_manager?
-
-  #   permitted
-  # end
 
   def set_notification
     @notification = current_user.notifications.find(params[:id])
@@ -57,6 +49,12 @@ class NotificationsController < ApplicationController
 
   def notification_params
     params.require(:notification).permit(:opened, :kept)
+  end
+
+  def notification_team_id(notification)
+    notification.post&.team_id ||
+      notification.match&.team_id ||
+      notification.match_payment&.match&.team_id
   end
 
   def post_json(post)
@@ -74,41 +72,5 @@ class NotificationsController < ApplicationController
         post.user.last_name
       ].compact.join(" ")
     }
-  end
-
-  def create_post_notifications
-    approved_memberships = @team.team_memberships.includes(:user).where(status: "approved")
-
-    approved_memberships.each do |membership|
-      next if membership.user_id == current_user.id
-
-      Notification.create!( user: membership.user, match: @match, title: post_notification_title, message: post_notification_message, notification_type: post_notification_type)
-    end
-  end
-
-  def post_notification_type
-    case @post.post_type
-    when "announcement"
-      "announcement"
-    when "tactical"
-      "tactical_post"
-    else
-      "post_created"
-    end
-  end
-
-  def post_notification_title
-    case @post.post_type
-    when "announcement"
-      "New Team Announcement"
-    when "tactical"
-      "New Tactical Post"
-    else
-      "New Team Post"
-    end
-  end
-
-  def post_notification_message
-    "#{current_user.first_name} posted: #{@post.title}"
   end
 end

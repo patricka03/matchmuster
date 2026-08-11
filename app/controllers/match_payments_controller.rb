@@ -92,51 +92,85 @@ class MatchPaymentsController < ApplicationController
   end
 
   def update
-    new_status = update_payment_params[:status]
+    requested_status = update_payment_params[:status]
     new_amount = update_payment_params[:amount_pence]
 
-    amount_changed =
-      new_amount.present? &&
-      new_amount.to_i != @match_payment.amount_pence
-
-    if new_amount.present? && @match_payment.status != "pending"
+    if requested_status.present? && requested_status != "waived"
       return render json: {
-        error: "Only pending payment amounts can be changed"
+        error: "Managers can only waive a pending payment. Stripe confirms paid payments."
       }, status: :unprocessable_entity
     end
 
-    if new_status.present? && !%w[pending paid waived].include?(new_status)
+    parsed_amount =
+      Integer(new_amount, exception: false) if new_amount.present?
+
+    if new_amount.present? && parsed_amount.nil?
       return render json: {
-        error: "Status must be pending, paid or waived"
+        error: "Amount must be a whole number of pence"
       }, status: :unprocessable_entity
     end
 
-    attributes = {}
-    attributes[:amount_pence] = new_amount if new_amount.present?
-
-    if new_status.present?
-      attributes[:status] = new_status
-      attributes[:paid_at] = new_status == "paid" ? Time.current : nil
-    end
-
-    if @match_payment.update(attributes)
-      if @match_payment.saved_change_to_status?
-        create_paid_notification if @match_payment.status == "paid"
-        create_waived_notification if @match_payment.status == "waived"
+    @match_payment.with_lock do
+      unless @match_payment.status == "pending"
+        return render json: {
+          error: "Only pending payments can be changed"
+        }, status: :unprocessable_entity
       end
 
-      create_amount_changed_notification if amount_changed
+      amount_changed =
+        parsed_amount.present? &&
+        parsed_amount != @match_payment.amount_pence
 
-      render json: @match_payment, status: :ok
-    else
-      render json: {
-        errors: @match_payment.errors.full_messages
-      }, status: :unprocessable_entity
+      waiver_requested = requested_status == "waived"
+
+      unless amount_changed || waiver_requested
+        return render json: @match_payment, status: :ok
+      end
+
+      session_state = expire_stored_checkout_session
+
+      unless session_state == :cleared
+        return render json: {
+          error: "Stripe is confirming this payment. Please refresh shortly."
+        }, status: :conflict
+      end
+
+      attributes = {
+        stripe_checkout_session_id: nil
+      }
+
+      attributes[:amount_pence] = parsed_amount if amount_changed
+      attributes[:status] = "waived" if waiver_requested
+
+      if @match_payment.update(attributes)
+        create_waived_notification if waiver_requested
+        create_amount_changed_notification if amount_changed
+
+        render json: @match_payment, status: :ok
+      else
+        render json: {
+          errors: @match_payment.errors.full_messages
+        }, status: :unprocessable_entity
+      end
     end
+  rescue Stripe::StripeError => error
+    Rails.logger.error(
+      "[Stripe Checkout cancellation] #{error.message}"
+    )
+
+    render json: {
+      error: "Stripe could not safely cancel the Checkout Session. No changes were made."
+    }, status: :unprocessable_entity
   end
 
   def destroy
-    @match_payment.destroy
+    unless @match_payment.status == "pending"
+      return render json: {
+        error: "Only pending payment requests can be deleted"
+      }, status: :unprocessable_entity
+    end
+
+    @match_payment.destroy!
 
     head :no_content
   end
@@ -154,19 +188,15 @@ class MatchPaymentsController < ApplicationController
   end
 
   def checkout
-    if @match_payment.status != "pending"
-      return render json: {
-        error: "Only pending payments can be paid"
-      }, status: :unprocessable_entity
-    end
-
     if @team.stripe_account_id.blank?
       return render json: {
         error: "This team has not connected Stripe"
       }, status: :unprocessable_entity
     end
 
-    stripe_account = Stripe::Account.retrieve(@team.stripe_account_id)
+    stripe_account = Stripe::Account.retrieve(
+      @team.stripe_account_id
+    )
 
     unless stripe_account.charges_enabled
       return render json: {
@@ -174,43 +204,101 @@ class MatchPaymentsController < ApplicationController
       }, status: :unprocessable_entity
     end
 
-    checkout_session = Stripe::Checkout::Session.create(
-      {
-        mode: "payment",
-        line_items: [
-          {
-            price_data: {
-              currency: "gbp",
-              unit_amount: @match_payment.amount_pence,
-              product_data: {
-                name: "Match payment"
-              }
-            },
-            quantity: 1
-          }
-        ],
-        success_url: "http://localhost:5173/payments/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url: "http://localhost:5173/payments/cancelled",
-        metadata: {
-          match_payment_id: @match_payment.id
-        },
-        payment_intent_data: {
-          metadata: {
-            match_payment_id: @match_payment.id
-          }
-        }
-      },
-      {
-        stripe_account: @team.stripe_account_id
-      }
-    )
+    frontend_url = ENV.fetch(
+      "FRONTEND_URL",
+      "http://localhost:5173"
+    ).delete_suffix("/")
 
-    @match_payment.update!(
-      stripe_checkout_session_id: checkout_session.id
-    )
+    checkout_session = nil
+    payment_not_pending = false
+    payment_being_confirmed = false
+
+    @match_payment.with_lock do
+      if @match_payment.status != "pending"
+        payment_not_pending = true
+        next
+      end
+
+      if @match_payment.stripe_checkout_session_id.present?
+        existing_session = Stripe::Checkout::Session.retrieve(
+          @match_payment.stripe_checkout_session_id,
+          {
+            stripe_account: @team.stripe_account_id
+          }
+        )
+
+        if existing_session.status == "open" &&
+            existing_session.url.present?
+          checkout_session = existing_session
+          next
+        end
+
+        if existing_session.status == "complete"
+          payment_being_confirmed = true
+          next
+        end
+      end
+
+      idempotency_key = [
+        "match-payment-checkout",
+        @match_payment.id,
+        @match_payment.amount_pence,
+        @match_payment.updated_at.to_i,
+        @match_payment.updated_at.usec
+      ].join("-")
+
+      checkout_session = Stripe::Checkout::Session.create(
+        {
+          mode: "payment",
+          line_items: [
+            {
+              price_data: {
+                currency: "gbp",
+                unit_amount: @match_payment.amount_pence,
+                product_data: {
+                  name: "Match payment"
+                }
+              },
+              quantity: 1
+            }
+          ],
+          success_url: "#{frontend_url}/dashboard?payment=success",
+          cancel_url: "#{frontend_url}/payments/cancelled",
+          metadata: {
+            match_payment_id: @match_payment.id.to_s
+          },
+          payment_intent_data: {
+            metadata: {
+              match_payment_id: @match_payment.id.to_s
+            }
+          }
+        },
+        {
+          stripe_account: @team.stripe_account_id,
+          idempotency_key: idempotency_key
+        }
+      )
+
+      @match_payment.update!(
+        stripe_checkout_session_id: checkout_session.id
+      )
+    end
+
+    if payment_not_pending
+      return render json: {
+        error: "Only pending payments can be paid"
+      }, status: :unprocessable_entity
+    end
+
+    if payment_being_confirmed
+      return render json: {
+        error: "Stripe is confirming this payment. Please refresh shortly."
+      }, status: :accepted
+    end
 
     render json: {
-      checkout_url: checkout_session.url
+      checkout_url: checkout_session.url,
+      checkout_session_id: checkout_session.id
     }, status: :ok
   rescue Stripe::StripeError => error
     render json: {
@@ -301,15 +389,7 @@ class MatchPaymentsController < ApplicationController
       message: "You have been requested to pay £#{formatted_amount} for the upcoming match.",
       notification_type: "match_payment_requested",
       match_payment_id: @match_payment.id,
-      match_id: @match_payment.match_id,
-    )
-  end
-
-  def create_paid_notification
-    @match_payment.user.notifications.create!(
-      title: "Match payment received",
-      message: "Your payment of £#{formatted_amount} has been marked as paid.",
-      notification_type: "match_payment_paid"
+      match_id: @match_payment.match_id
     )
   end
 
@@ -331,5 +411,33 @@ class MatchPaymentsController < ApplicationController
 
   def formatted_amount
     format("%.2f", @match_payment.amount_pence / 100.0)
+  end
+
+  def expire_stored_checkout_session
+    return :cleared if @match_payment.stripe_checkout_session_id.blank?
+
+    checkout_session = Stripe::Checkout::Session.retrieve(
+      @match_payment.stripe_checkout_session_id,
+      {
+        stripe_account: @team.stripe_account_id
+      }
+    )
+
+    case checkout_session.status
+    when "open"
+      Stripe::Checkout::Session.expire(
+        checkout_session.id,
+        {},
+        {
+          stripe_account: @team.stripe_account_id
+        }
+      )
+
+      :cleared
+    when "expired"
+      :cleared
+    else
+      :payment_processing
+    end
   end
 end

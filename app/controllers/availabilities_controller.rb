@@ -6,58 +6,53 @@ class AvailabilitiesController < ApplicationController
   before_action :approved_team_manager, only: %i[index remind]
 
   def index
-  approved_memberships =
-    @team.team_memberships
-         .includes(:user)
-         .where(role: "player", status: "approved")
+    approved_memberships =
+      @team.team_memberships
+           .includes(:user)
+           .where(role: "player", status: "approved")
 
-  availability_by_user_id =
-    @match.availabilities.index_by(&:user_id)
+    availability_by_user_id =
+      @match.availabilities.index_by(&:user_id)
 
-  players = approved_memberships.map do |membership|
-    user = membership.user
-    availability = availability_by_user_id[user.id]
+    players = approved_memberships.map do |membership|
+      user = membership.user
+      availability = availability_by_user_id[user.id]
 
-    {
-      id: user.id,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      email: user.email,
-      preferred_position: membership.preferred_position,
-      availability_id: availability&.id,
-      status: availability&.status || "pending"
-    }
+      {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        preferred_position: membership.preferred_position,
+        availability_id: availability&.id,
+        status: availability&.status || "pending"
+      }
+    end
+
+    render json: {
+      match: {
+        id: @match.id,
+        opponent: @match.opponent,
+        match_type: @match.match_type,
+        location: @match.location,
+        kickoff_time: @match.kickoff_time
+      },
+      players: players,
+      summary: {
+        available: players.count { |player| player[:status] == "available" },
+        unavailable: players.count { |player| player[:status] == "unavailable" },
+        awaiting_response: players.count { |player| player[:status] == "pending" },
+        total_players: players.count
+      }
+    }, status: :ok
   end
-
-  render json: {
-    match: {
-      id: @match.id,
-      opponent: @match.opponent,
-      match_type: @match.match_type,
-      location: @match.location,
-      kickoff_time: @match.kickoff_time
-    },
-    players: players,
-    summary: {
-      available: players.count do |player|
-        player[:status] == "available"
-      end,
-      unavailable: players.count do |player|
-        player[:status] == "unavailable"
-      end,
-      awaiting_response: players.count do |player|
-        player[:status] == "pending"
-      end,
-      total_players: players.count
-    }
-  }, status: :ok
-end
 
   def create
     @availability = @match.availabilities.new(availability_params)
     @availability.user = current_user
 
     if @availability.save
+      notify_team_managers_of_availability_change(@availability)
       render json: @availability, status: :created
     elsif @availability.errors.added?(:user_id, :taken)
       render json: {
@@ -72,6 +67,10 @@ end
 
   def update
     if @availability.update(availability_params)
+      if @availability.saved_change_to_status?
+        notify_team_managers_of_availability_change(@availability)
+      end
+
       render json: @availability, status: :ok
     else
       render json: {
@@ -149,8 +148,7 @@ end
       status: "approved"
     )
 
-    return if current_user.account_type == "player" &&
-              player_membership
+    return if current_user.account_type == "player" && player_membership
 
     render json: {
       error: "Only an approved player of this team can perform this action"
@@ -176,6 +174,34 @@ end
     }, status: :forbidden
   end
 
+  def notify_team_managers_of_availability_change(availability)
+    approved_managers =
+      User.joins(:team_memberships)
+          .where(
+            account_type: "manager",
+            manager_verification_status: "approved",
+            team_memberships: {
+              team_id: @team.id,
+              role: "manager",
+              status: "approved"
+            }
+          )
+          .distinct
+
+    player_name = [current_user.first_name, current_user.last_name].compact.join(" ")
+    status_text = availability.status.to_s.tr("_", " ")
+
+    approved_managers.find_each do |manager|
+      Notification.create!(
+        user: manager,
+        match: @match,
+        title: "Player Availability Updated",
+        message: "#{player_name} is now #{status_text} for the match against #{@match.opponent}.",
+        notification_type: "player_availability_updated"
+      )
+    end
+  end
+
   def players_without_availability
     approved_players = @match.team.team_memberships
                              .includes(:user)
@@ -195,5 +221,4 @@ end
   def availability_params
     params.require(:availability).permit(:status)
   end
-
 end

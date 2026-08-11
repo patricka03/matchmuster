@@ -19,4 +19,12 @@ class UserMailer < ApplicationMailer
     )
   end
 
+  def manager_rejected_email(email:, first_name:)
+    @first_name = first_name.to_s.strip.presence || "there"
+
+    mail(
+      to: email,
+      subject: "Your MatchMuster manager application"
+    )
+  end
 end

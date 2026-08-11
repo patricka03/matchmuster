@@ -31,7 +31,9 @@ class MatchesController < ApplicationController
 
   def update
     if @match.update(match_params)
-      create_fixture_update_notifications if important_fixture_details_changed?
+      if important_fixture_details_changed?
+        create_fixture_update_notifications
+      end
 
       render json: @match, status: :ok
     else
@@ -117,11 +119,11 @@ class MatchesController < ApplicationController
 
   def approved_player_memberships
     @team.team_memberships
-         .includes(:user)
-         .where(
-           role: "player",
-           status: "approved"
-         )
+      .includes(:user)
+      .where(
+        role: "player",
+        status: "approved"
+      )
   end
 
   def create_fixture_notifications

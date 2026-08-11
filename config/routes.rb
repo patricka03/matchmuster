@@ -1,10 +1,23 @@
 Rails.application.routes.draw do
+  devise_for :developers, path: "developer", path_names: { sign_in: "login", sign_out: "logout" }, controllers: { sessions: "developers/sessions" }, skip: [ :registrations ], defaults: { format: :json }
+  get "developer/dashboard", to: "developers/dashboard#show"
+  get "developer/managers", to: "developers/managers#index"
+
+  get "developer/managers", to: "developers/managers#index"
+  patch "developer/managers/:id/approve", to: "developers/managers#approve"
+  patch "developer/managers/:id/reject", to: "developers/managers#reject"
+  post "developer/app_updates", to: "developers/app_updates#create"
+  get "developer/activities", to: "developers/activities#index"
+  get "developer/activity", to: "developers/activity#index"
+
+
   # devise_for :users
   devise_for :users, controllers: { registrations: "users/registrations", sessions: "users/sessions", passwords: "users/passwords"}
   get "users/me", to: "users#me"
   patch "/users/avatar", to: "users#update_avatar"
   patch "/users/profile", to: "users#update_profile"
-  # patch "/users/change_password", to: "users#update_password"
+  patch "/users/preferred_position", to: "team_memberships#update_preferred_position"
+  patch "/users/change_password", to: "users#update_password"
   post "stripe/webhook", to: "stripe_webhooks#create"
 
   resources :teams do

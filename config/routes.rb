@@ -25,6 +25,7 @@ Rails.application.routes.draw do
       post :stripe_connect
       get :stripe_status
       post :stripe_dashboard
+      patch :badge, action: :update_badge
     end
 
     resources :posts, only: %i[index show create update destroy] do

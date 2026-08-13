@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  document_type: MyString
+  document_version: MyString
+  accepted_at: 2026-08-13 15:11:47
+
+two:
+  user: two
+  document_type: MyString
+  document_version: MyString
+  accepted_at: 2026-08-13 15:11:47

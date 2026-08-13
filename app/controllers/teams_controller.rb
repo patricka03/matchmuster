@@ -1,12 +1,12 @@
 class TeamsController < ApplicationController
   before_action :authenticate_user!
 
-  before_action :set_team, only: %i[ show update destroy stripe_connect stripe_status stripe_dashboard ]
+  before_action :set_team, only: %i[ show update destroy stripe_connect stripe_status stripe_dashboard update_badge ]
 
   before_action :require_manager!, only: :create
   before_action :require_team_member!, only: :show
 
-  before_action :require_team_manager!, only: %i[ update destroy stripe_connect stripe_status stripe_dashboard ]
+  before_action :require_team_manager!, only: %i[ update destroy stripe_connect stripe_status stripe_dashboard update_badge ]
 
   def index
     teams = Team.joins(:team_memberships).where(
@@ -180,6 +180,41 @@ class TeamsController < ApplicationController
     }, status: :unprocessable_entity
   end
 
+  def update_badge
+    badge = params[:badge]
+
+    if badge.blank?
+      return render json: {
+        error: "Please select a team badge."
+      }, status: :unprocessable_entity
+    end
+
+    allowed_types = %w[
+      image/jpeg
+      image/png
+      image/webp
+    ]
+
+    unless allowed_types.include?(badge.content_type)
+      return render json: {
+        error: "The badge must be a JPG, PNG or WebP image."
+      }, status: :unprocessable_entity
+    end
+
+    if badge.size > 5.megabytes
+      return render json: {
+        error: "The badge must be smaller than 5 MB."
+      }, status: :unprocessable_entity
+    end
+
+    @team.badge.attach(badge)
+
+    render json: {
+      message: "Team badge updated successfully.",
+      team: team_response(@team)
+    }, status: :ok
+  end
+
   private
 
   def set_team
@@ -211,6 +246,7 @@ class TeamsController < ApplicationController
       id: team.id,
       name: team.name,
       description: team.description,
+      badge_url: team.badge.attached? ? url_for(team.badge) : nil,
       membership_id: membership&.id,
       membership_role: membership&.role
     }

@@ -16,7 +16,11 @@ class Notification < ApplicationRecord
     match_payment_waived
     match_payment_amount_changed
     manager_status_updated
+    team_join_requested
     app_update
+    team_join_requested
+    team_join_approved
+    team_join_rejected
   ].freeze
 
   belongs_to :user

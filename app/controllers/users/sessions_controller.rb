@@ -2,6 +2,8 @@ module Users
   class SessionsController < Devise::SessionsController
     respond_to :json
 
+    prepend_before_action :authenticate_user!, only: :destroy
+
     def create
       self.resource = warden.authenticate(
         auth_options.merge(store: false)

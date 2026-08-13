@@ -25,6 +25,7 @@ class User < ApplicationRecord
   has_many :matches, through: :availabilities
   has_many :post_reads, dependent: :destroy
   has_many :read_posts, through: :post_reads, source: :post
+  has_many :legal_acceptances, dependent: :destroy
 
   has_one_attached :avatar
 

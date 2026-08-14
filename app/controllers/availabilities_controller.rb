@@ -170,7 +170,6 @@ class AvailabilitiesController < ApplicationController
       @match
         .team
         .team_memberships
-        .includes(:user)
         .where(
           role: "player",
           status: "approved"
@@ -187,30 +186,17 @@ class AvailabilitiesController < ApplicationController
       }, status: :ok
     end
 
-    players_to_remind.each do |membership|
-      Notification.create!(
-        user: membership.user,
-        match: @match,
-        title: "Availability Reminder",
-        message:
-          "Please confirm your availability for the match against #{@match.opponent}.",
-        notification_type:
-          "availability_reminder"
-      )
-    end
-
-    @match.update!(
-      availability_reminder_sent_at:
-        Time.current
+    AvailabilityReminderJob.perform_later(
+      @match.id
     )
 
     render json: {
       message:
-        "Availability reminder sent",
+        "Availability reminder queued",
 
       recipients:
         players_to_remind.count
-    }, status: :ok
+    }, status: :accepted
   end
 
   def mine

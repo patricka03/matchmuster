@@ -1,5 +1,5 @@
 class Availability < ApplicationRecord
-  STATUS = %w[available unavailable maybe].freeze
+  STATUS = %w[available unavailable].freeze
 
   before_validation :normalise_status
 

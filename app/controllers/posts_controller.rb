@@ -2,59 +2,118 @@ class PostsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team
   before_action :authorize_team_member!
-  before_action :set_post, only: %i[show update destroy]
-  before_action :authorize_post_management!, only: %i[update destroy]
+  before_action :set_post,
+                only: %i[
+                  show
+                  update
+                  destroy
+                ]
+
+  before_action :authorize_post_management!,
+                only: %i[
+                  update
+                  destroy
+                ]
+
+  # ========================================
+  # INDEX
+  # ========================================
 
   def index
-    @posts = @team.posts
-                  .includes(:user)
-                  .order(pinned: :desc, created_at: :desc)
+    @posts =
+      @team
+        .posts
+        .includes(:user)
+        .order(
+          pinned: :desc,
+          created_at: :desc
+        )
 
-    render json: @posts.as_json(
-      include: {
-        user: {
-          only: %i[id first_name]
+    render json:
+      @posts.as_json(
+        include: {
+          user: {
+            only: %i[
+              id
+              first_name
+            ]
+          }
         }
-      }
-    )
+      )
   end
+
+  # ========================================
+  # SHOW
+  # ========================================
 
   def show
     record_post_read
 
-    render json: @post.as_json(
-      include: {
-        user: {
-          only: %i[id first_name]
+    render json:
+      @post.as_json(
+        include: {
+          user: {
+            only: %i[
+              id
+              first_name
+            ]
+          }
         }
-      }
-    ), status: :ok
+      ),
+      status: :ok
   end
 
+  # ========================================
+  # CREATE
+  # ========================================
+
   def create
-    @post = @team.posts.new(post_params)
-    @post.user = current_user
+    @post =
+      @team.posts.new(
+        post_params
+      )
+
+    @post.user =
+      current_user
 
     if @post.save
       create_post_notifications
 
-      render json: @post, status: :created
+      render json: @post,
+             status: :created
     else
       render json: {
-        errors: @post.errors.full_messages
+        errors:
+          @post
+            .errors
+            .full_messages
       }, status: :unprocessable_entity
     end
   end
 
+  # ========================================
+  # UPDATE
+  # ========================================
+
   def update
-    if @post.update(post_params)
-      render json: @post, status: :ok
+    if @post.update(
+      post_params
+    )
+      render json: @post,
+             status: :ok
     else
       render json: {
-        errors: @post.errors.full_messages
+        errors:
+          @post
+            .errors
+            .full_messages
       }, status: :unprocessable_entity
     end
   end
+
+  # ========================================
+  # DESTROY
+  # ========================================
 
   def destroy
     @post.destroy
@@ -64,90 +123,156 @@ class PostsController < ApplicationController
 
   private
 
+  # ========================================
+  # SET TEAM / POST
+  # ========================================
+
   def set_team
-    @team = Team.find(params[:team_id])
+    @team =
+      Team.find(
+        params[:team_id]
+      )
   end
 
   def set_post
-    @post = @team.posts.find(params[:id])
+    @post =
+      @team
+        .posts
+        .find(
+          params[:id]
+        )
   end
 
+  # ========================================
+  # AUTHORISATION
+  # ========================================
+
   def authorize_team_member!
-    approved_member = current_user.team_memberships.exists?(
-      team_id: @team.id,
-      status: "approved"
-    )
+    approved_member =
+      current_user
+        .team_memberships
+        .exists?(
+          team_id: @team.id,
+          status: "approved"
+        )
 
     return if approved_member
 
     render json: {
-      error: "You are not an approved member of this team"
+      error:
+        "You are not an approved member of this team"
     }, status: :forbidden
   end
 
   def authorize_post_management!
-    return if @post.user_id == current_user.id
-    return if approved_manager?
+    return if
+      @post.user_id ==
+      current_user.id
+
+    return if
+      approved_manager?
 
     render json: {
-      error: "You are not authorised to manage this post"
+      error:
+        "You are not authorised to manage this post"
     }, status: :forbidden
   end
 
   def approved_manager?
-    current_user.team_memberships.exists?(
-      team_id: @team.id,
-      role: "manager",
-      status: "approved"
-    )
+    current_user
+      .team_memberships
+      .exists?(
+        team_id: @team.id,
+        role: "manager",
+        status: "approved"
+      )
   end
 
-  def post_params
-    permitted = params.require(:post).permit(
-      :title,
-      :content,
-      :post_type,
-      :pinned
-    )
+  # ========================================
+  # STRONG PARAMS
+  # ========================================
 
-    permitted.delete(:pinned) unless approved_manager?
+  def post_params
+    permitted =
+      params
+        .require(:post)
+        .permit(
+          :title,
+          :content,
+          :post_type,
+          :pinned
+        )
+
+    permitted.delete(
+      :pinned
+    ) unless approved_manager?
 
     permitted
   end
 
-  def record_post_read
-    return unless %w[announcement tactical].include?(@post.post_type)
-    return if @post.user_id == current_user.id
+  # ========================================
+  # POST READS
+  # ========================================
 
-    @post.post_reads.find_or_create_by!(user: current_user) do |post_read|
-      post_read.read_at = Time.current
-    end
+  def record_post_read
+    return unless
+      %w[
+        announcement
+        tactical
+      ].include?(
+        @post.post_type
+      )
+
+    return if
+      @post.user_id ==
+      current_user.id
+
+    @post
+      .post_reads
+      .find_or_create_by!(
+        user: current_user
+      ) do |post_read|
+        post_read.read_at =
+          Time.current
+      end
   end
+
+  # ========================================
+  # BACKGROUND POST NOTIFICATIONS
+  # ========================================
 
   def create_post_notifications
-    return if @post.post_type == "general"
+    return if
+      @post.post_type ==
+      "general"
 
-    approved_memberships = @team.team_memberships
-                                .includes(:user)
-                                .where(status: "approved")
+    PostNotificationJob.perform_later(
+      team_id:
+        @team.id,
 
-    approved_memberships.each do |membership|
-      next if membership.user_id == current_user.id
+      post_id:
+        @post.id,
 
-      Notification.create!(
-        user: membership.user,
-        post: @post,
-        title: post_notification_title,
-        message: post_notification_message,
-        notification_type: post_notification_type
-      )
-    end
+      title:
+        post_notification_title,
+
+      message:
+        post_notification_message,
+
+      notification_type:
+        post_notification_type
+    )
   end
+
+  # ========================================
+  # NOTIFICATION CONTENT
+  # ========================================
 
   def post_notification_title
     case @post.post_type
     when "announcement"
       "New Team Announcement"
+
     when "tactical"
       "New Tactical Post"
     end
@@ -161,6 +286,7 @@ class PostsController < ApplicationController
     case @post.post_type
     when "announcement"
       "announcement"
+
     when "tactical"
       "tactical_post"
     end

@@ -35,7 +35,7 @@ module Developers
         UserMailer.manager_rejected_email(
           email: @manager.email,
           first_name: @manager.first_name
-        ).deliver_now
+        ).deliver_later
       rescue StandardError => error
         Rails.logger.error(
           "Manager rejection email failed for user #{@manager.id}: #{error.message}"

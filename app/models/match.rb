@@ -21,8 +21,12 @@ class Match < ApplicationRecord
   before_validation :normalise_match_type
 
   after_create_commit :schedule_match_rating_jobs
+  after_create_commit :schedule_availability_deadline_job
 
   after_update_commit :schedule_match_rating_jobs,
+                      if: :saved_change_to_kickoff_time?
+
+  after_update_commit :schedule_availability_deadline_job,
                       if: :saved_change_to_kickoff_time?
 
   belongs_to :team
@@ -396,6 +400,37 @@ class Match < ApplicationRecord
   end
 
   private
+
+  # ========================================
+  # SCHEDULE AVAILABILITY DEADLINE
+  # ========================================
+
+  def schedule_availability_deadline_job
+    return if kickoff_time.blank?
+
+    expected_kickoff_time =
+      kickoff_time.iso8601
+
+    deadline =
+      kickoff_time -
+      2.days
+
+    if deadline <= Time.current
+      AvailabilityDeadlineJob.perform_later(
+        id,
+        expected_kickoff_time
+      )
+    else
+      AvailabilityDeadlineJob
+        .set(
+          wait_until: deadline
+        )
+        .perform_later(
+          id,
+          expected_kickoff_time
+        )
+    end
+  end
 
   # ========================================
   # SCHEDULE MATCH RATING JOBS

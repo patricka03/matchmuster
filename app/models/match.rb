@@ -20,14 +20,8 @@ class Match < ApplicationRecord
 
   before_validation :normalise_match_type
 
-  after_create_commit :schedule_match_rating_jobs
-  after_create_commit :schedule_availability_deadline_job
-
-  after_update_commit :schedule_match_rating_jobs,
-                      if: :saved_change_to_kickoff_time?
-
-  after_update_commit :schedule_availability_deadline_job,
-                      if: :saved_change_to_kickoff_time?
+  after_save_commit :schedule_match_background_jobs,
+                  if: :should_schedule_match_background_jobs?
 
   belongs_to :team
 
@@ -492,6 +486,20 @@ class Match < ApplicationRecord
         id,
         expected_kickoff_time
       )
+  end
+
+# ========================================
+# SCHEDULE MATCH BACKGROUND JOBS
+# ========================================
+
+  def schedule_match_background_jobs
+    schedule_availability_deadline_job
+    schedule_match_rating_jobs
+  end
+
+  def should_schedule_match_background_jobs?
+    previously_new_record? ||
+      saved_change_to_kickoff_time?
   end
 
   # ========================================

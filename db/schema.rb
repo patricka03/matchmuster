@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_14_090203) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_14_155148) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -166,6 +166,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_090203) do
 
   create_table "notifications", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "deduplication_key"
     t.datetime "kept_at"
     t.bigint "match_id"
     t.bigint "match_payment_id"
@@ -180,6 +181,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_090203) do
     t.index ["match_id"], name: "index_notifications_on_match_id"
     t.index ["match_payment_id"], name: "index_notifications_on_match_payment_id"
     t.index ["post_id"], name: "index_notifications_on_post_id"
+    t.index ["user_id", "deduplication_key"], name: "index_notifications_on_user_and_deduplication_key", unique: true, where: "(deduplication_key IS NOT NULL)"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 

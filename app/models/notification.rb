@@ -53,6 +53,29 @@ class Notification < ApplicationRecord
               in: NOTIFICATION_TYPES
             }
 
+  # ========================================
+  # IDEMPOTENT NOTIFICATIONS
+  # ========================================
+
+  def self.create_once!(
+    user:,
+    deduplication_key:,
+    **attributes
+  )
+    create_or_find_by!(
+      user_id: user.id,
+      deduplication_key: deduplication_key
+    ) do |notification|
+      notification.assign_attributes(
+        attributes
+      )
+    end
+  end
+
+  # ========================================
+  # APP UPDATE BROADCAST
+  # ========================================
+
   def self.broadcast_app_update!(
     title:,
     message:

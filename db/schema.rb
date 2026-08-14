@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_14_001031) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_14_090203) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -149,7 +149,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_001031) do
     t.text "description"
     t.string "formation"
     t.datetime "kickoff_time"
+    t.decimal "latitude", precision: 10, scale: 6
     t.string "location"
+    t.decimal "longitude", precision: 10, scale: 6
     t.string "match_type"
     t.string "opponent"
     t.integer "opponent_score"

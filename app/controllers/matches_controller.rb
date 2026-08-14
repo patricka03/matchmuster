@@ -142,7 +142,8 @@ class MatchesController < ApplicationController
       :location,
       :kickoff_time,
       :description,
-      :formation
+      :latitude,
+      :longitude
     )
   end
 

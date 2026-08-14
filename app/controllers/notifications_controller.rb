@@ -36,7 +36,7 @@ class NotificationsController < ApplicationController
           [match_id, true]
         end
 
-    render json:
+    notifications_json =
       @notifications.map do |notification|
         notification
           .as_json
@@ -57,16 +57,16 @@ class NotificationsController < ApplicationController
                 availability_match_ids
               )
           )
-      end,
-      status: :ok
+      end
+
+    render json: notifications_json,
+           status: :ok
   end
 
   def update
     attributes = {}
 
-    if notification_params[
-      :opened
-    ] == true
+    if notification_params[:opened] == true
       attributes[:read] =
         true
 
@@ -75,13 +75,9 @@ class NotificationsController < ApplicationController
         Time.current
     end
 
-    if notification_params.key?(
-      :kept
-    )
+    if notification_params.key?(:kept)
       attributes[:kept_at] =
-        notification_params[
-          :kept
-        ] == true ?
+        notification_params[:kept] == true ?
           Time.current :
           nil
     end
@@ -159,10 +155,12 @@ class NotificationsController < ApplicationController
       )
     end
 
-    current_user.availabilities.exists?(
-      match_id:
-        notification.match_id
-    )
+    current_user
+      .availabilities
+      .exists?(
+        match_id:
+          notification.match_id
+      )
   end
 
   def notification_json(

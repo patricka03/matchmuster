@@ -26,6 +26,10 @@ class User < ApplicationRecord
   has_many :post_reads, dependent: :destroy
   has_many :read_posts, through: :post_reads, source: :post
   has_many :legal_acceptances, dependent: :destroy
+  has_many :match_ratings_given, class_name: "MatchRating", foreign_key: :rater_id, dependent: :destroy
+  has_many :match_ratings_received, class_name: "MatchRating", foreign_key: :player_id, dependent: :destroy
+  has_many :match_awards, dependent: :destroy
+  has_many :match_player_stats, foreign_key: :player_id, dependent: :destroy
 
   has_one_attached :avatar
 
@@ -44,6 +48,14 @@ class User < ApplicationRecord
 
   def manager?
     account_type == "manager"
+  end
+
+  def deleted?
+    deleted_at.present?
+  end
+
+  def active_for_authentication?
+    super && !deleted?
   end
 
   private

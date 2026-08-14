@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_14_001031) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -78,6 +78,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
     t.index ["user_id"], name: "index_legal_acceptances_on_user_id"
   end
 
+  create_table "match_awards", force: :cascade do |t|
+    t.decimal "average_rating", precision: 3, scale: 1, null: false
+    t.string "award_type", null: false
+    t.datetime "awarded_at", null: false
+    t.datetime "created_at", null: false
+    t.bigint "match_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["match_id", "user_id", "award_type"], name: "index_match_awards_unique", unique: true
+    t.index ["match_id"], name: "index_match_awards_on_match_id"
+    t.index ["user_id"], name: "index_match_awards_on_user_id"
+  end
+
   create_table "match_payments", force: :cascade do |t|
     t.integer "amount_pence", null: false
     t.datetime "created_at", null: false
@@ -95,6 +108,41 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
     t.index ["user_id"], name: "index_match_payments_on_user_id"
   end
 
+  create_table "match_player_stats", force: :cascade do |t|
+    t.integer "assists", default: 0, null: false
+    t.boolean "clean_sheet", default: false, null: false
+    t.datetime "created_at", null: false
+    t.integer "goals", default: 0, null: false
+    t.bigint "match_id", null: false
+    t.bigint "player_id", null: false
+    t.integer "red_cards", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.integer "yellow_cards", default: 0, null: false
+    t.index ["match_id", "player_id"], name: "index_match_player_stats_unique", unique: true
+    t.index ["match_id"], name: "index_match_player_stats_on_match_id"
+    t.index ["player_id"], name: "index_match_player_stats_on_player_id"
+    t.check_constraint "assists >= 0", name: "match_player_stats_assists_non_negative"
+    t.check_constraint "goals >= 0", name: "match_player_stats_goals_non_negative"
+    t.check_constraint "red_cards >= 0 AND red_cards <= 1", name: "match_player_stats_red_cards_range"
+    t.check_constraint "yellow_cards >= 0 AND yellow_cards <= 2", name: "match_player_stats_yellow_cards_range"
+  end
+
+  create_table "match_ratings", force: :cascade do |t|
+    t.text "comment"
+    t.datetime "created_at", null: false
+    t.bigint "match_id", null: false
+    t.bigint "player_id", null: false
+    t.bigint "rater_id", null: false
+    t.decimal "rating", precision: 3, scale: 1, null: false
+    t.datetime "updated_at", null: false
+    t.index ["match_id", "rater_id", "player_id"], name: "index_match_ratings_unique", unique: true
+    t.index ["match_id"], name: "index_match_ratings_on_match_id"
+    t.index ["player_id"], name: "index_match_ratings_on_player_id"
+    t.index ["rater_id"], name: "index_match_ratings_on_rater_id"
+    t.check_constraint "rater_id <> player_id", name: "match_ratings_no_self_rating"
+    t.check_constraint "rating >= 1.0 AND rating <= 10.0", name: "match_ratings_rating_range"
+  end
+
   create_table "matches", force: :cascade do |t|
     t.datetime "availability_reminder_sent_at"
     t.datetime "created_at", null: false
@@ -104,9 +152,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
     t.string "location"
     t.string "match_type"
     t.string "opponent"
+    t.integer "opponent_score"
+    t.datetime "ratings_finalised_at"
     t.bigint "team_id", null: false
+    t.integer "team_score"
     t.datetime "updated_at", null: false
     t.index ["team_id"], name: "index_matches_on_team_id"
+    t.check_constraint "opponent_score >= 0", name: "matches_opponent_score_non_negative"
+    t.check_constraint "team_score >= 0", name: "matches_team_score_non_negative"
   end
 
   create_table "notifications", force: :cascade do |t|
@@ -317,6 +370,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
   create_table "users", force: :cascade do |t|
     t.string "account_type"
     t.datetime "created_at", null: false
+    t.datetime "deleted_at"
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
     t.string "first_name"
@@ -327,6 +381,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
     t.datetime "updated_at", null: false
+    t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["jti"], name: "index_users_on_jti", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
@@ -337,8 +392,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_141147) do
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
   add_foreign_key "legal_acceptances", "users"
+  add_foreign_key "match_awards", "matches"
+  add_foreign_key "match_awards", "users"
   add_foreign_key "match_payments", "matches"
   add_foreign_key "match_payments", "users"
+  add_foreign_key "match_player_stats", "matches"
+  add_foreign_key "match_player_stats", "users", column: "player_id"
+  add_foreign_key "match_ratings", "matches"
+  add_foreign_key "match_ratings", "users", column: "player_id"
+  add_foreign_key "match_ratings", "users", column: "rater_id"
   add_foreign_key "matches", "teams"
   add_foreign_key "notifications", "match_payments"
   add_foreign_key "notifications", "matches"

@@ -3,52 +3,76 @@ class SquadSelectionsController < ApplicationController
   before_action :set_team
   before_action :set_match
   before_action :authorize_manager!
-  before_action :set_squad_selection, only: %i[update destroy]
+
+  before_action :set_squad_selection,
+                only: %i[update destroy]
 
   def index
-    @squad_selections = @match.squad_selections.includes(:user)
+    @squad_selections =
+      @match
+        .squad_selections
+        .includes(:user)
+        .order(:id)
 
-    render json: @squad_selections.as_json(
-      include: {
-        user: {
-          only: %i[id first_name]
-        }
-      }
-    )
+    render json: {
+      squad_selections:
+        @squad_selections.map do |selection|
+          squad_selection_json(selection)
+        end
+    }, status: :ok
   end
 
   def create
-    @squad_selection = @match.squad_selections.new(
-      squad_selection_params
-    )
+    @squad_selection =
+      @match.squad_selections.new(
+        squad_selection_params
+      )
 
     if @squad_selection.save
       create_squad_selected_notification
 
-      render json: @squad_selection,
-             status: :created
+      render json: {
+        squad_selection:
+          squad_selection_json(
+            @squad_selection
+          )
+      }, status: :created
     else
       render json: {
-        errors: @squad_selection.errors.full_messages
+        errors:
+          @squad_selection
+            .errors
+            .full_messages
       }, status: :unprocessable_entity
     end
   end
 
   def update
-    if @squad_selection.update(squad_selection_params)
-      create_squad_updated_notification if important_squad_details_changed?
+    if @squad_selection.update(
+      squad_selection_params
+    )
+      if important_squad_details_changed?
+        create_squad_updated_notification
+      end
 
-      render json: @squad_selection,
-             status: :ok
+      render json: {
+        squad_selection:
+          squad_selection_json(
+            @squad_selection
+          )
+      }, status: :ok
     else
       render json: {
-        errors: @squad_selection.errors.full_messages
+        errors:
+          @squad_selection
+            .errors
+            .full_messages
       }, status: :unprocessable_entity
     end
   end
 
   def destroy
-    @squad_selection.destroy
+    @squad_selection.destroy!
 
     head :no_content
   end
@@ -56,15 +80,22 @@ class SquadSelectionsController < ApplicationController
   private
 
   def set_team
-    @team = Team.find(params[:team_id])
+    @team = Team.find(
+      params[:team_id]
+    )
   end
 
   def set_match
-    @match = @team.matches.find(params[:match_id])
+    @match = @team.matches.find(
+      params[:match_id]
+    )
   end
 
   def set_squad_selection
-    @squad_selection = @match.squad_selections.find(params[:id])
+    @squad_selection =
+      @match.squad_selections.find(
+        params[:id]
+      )
   end
 
   def authorize_manager!
@@ -72,13 +103,15 @@ class SquadSelectionsController < ApplicationController
       current_user.account_type == "manager" &&
       current_user.manager_verification_status == "approved"
 
-    approved_manager_membership = current_user.team_memberships.exists?(
-      team_id: @team.id,
-      role: "manager",
-      status: "approved"
-    )
+    approved_manager_membership =
+      current_user.team_memberships.exists?(
+        team_id: @team.id,
+        role: "manager",
+        status: "approved"
+      )
 
-    return if verified_manager && approved_manager_membership
+    return if verified_manager &&
+              approved_manager_membership
 
     render json: {
       error: "You are not authorised to manage this squad"
@@ -86,7 +119,9 @@ class SquadSelectionsController < ApplicationController
   end
 
   def squad_selection_params
-    params.require(:squad_selection).permit(
+    params.require(
+      :squad_selection
+    ).permit(
       :user_id,
       :selection_type,
       :position,
@@ -96,6 +131,53 @@ class SquadSelectionsController < ApplicationController
       :is_penalty_taker,
       :is_freekick_taker
     )
+  end
+
+  def squad_selection_json(selection)
+    {
+      id: selection.id,
+      match_id: selection.match_id,
+      user_id: selection.user_id,
+
+      selection_type:
+        selection.selection_type,
+
+      position:
+        selection.position,
+
+      captain:
+        selection.captain,
+
+      is_left_corner_taker:
+        selection.is_left_corner_taker,
+
+      is_right_corner_taker:
+        selection.is_right_corner_taker,
+
+      is_penalty_taker:
+        selection.is_penalty_taker,
+
+      is_freekick_taker:
+        selection.is_freekick_taker,
+
+      user: {
+        id: selection.user.id,
+
+        first_name:
+          selection.user.first_name,
+
+        last_name:
+          selection.user.last_name,
+
+        email:
+          selection.user.email,
+
+        avatar_url:
+          selection.user.avatar.attached? ?
+            url_for(selection.user.avatar) :
+            nil
+      }
+    }
   end
 
   def create_squad_selected_notification
@@ -124,10 +206,12 @@ class SquadSelectionsController < ApplicationController
   end
 
   def squad_selected_message
-    message = "You have been selected as a #{@squad_selection.selection_type}"
+    message =
+      "You have been selected as a #{@squad_selection.selection_type}"
 
     if @squad_selection.position.present?
-      message += " in #{@squad_selection.position}"
+      message +=
+        " in #{@squad_selection.position}"
     end
 
     "#{message} for the match against #{@match.opponent}."
@@ -137,11 +221,13 @@ class SquadSelectionsController < ApplicationController
     changed_details = []
 
     if @squad_selection.saved_change_to_selection_type?
-      changed_details << "selection"
+      changed_details <<
+        "selection"
     end
 
     if @squad_selection.saved_change_to_position?
-      changed_details << "position"
+      changed_details <<
+        "position"
     end
 
     "Your #{changed_details.to_sentence} has been updated for the match against #{@match.opponent}."

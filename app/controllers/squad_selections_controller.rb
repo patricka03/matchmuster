@@ -2,10 +2,22 @@ class SquadSelectionsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team
   before_action :set_match
-  before_action :authorize_manager!
+
+  before_action :authorize_team_member!,
+                only: :index
+
+  before_action :authorize_manager!,
+                only: %i[
+                  create
+                  update
+                  destroy
+                ]
 
   before_action :set_squad_selection,
-                only: %i[update destroy]
+                only: %i[
+                  update
+                  destroy
+                ]
 
   def index
     @squad_selections =
@@ -127,6 +139,35 @@ class SquadSelectionsController < ApplicationController
       )
   end
 
+  # Approved players and approved managers may view the squad.
+  # Only managers reach create, update or destroy.
+  def authorize_team_member!
+    membership =
+      current_user
+        .team_memberships
+        .find_by(
+          team_id: @team.id,
+          status: "approved"
+        )
+
+    authorised =
+      case current_user.account_type
+      when "player"
+        membership&.role == "player"
+      when "manager"
+        membership&.role == "manager" &&
+          current_user.manager_verification_status == "approved"
+      else
+        false
+      end
+
+    return if authorised
+
+    render json: {
+      error: "You are not authorised to view this squad"
+    }, status: :forbidden
+  end
+
   def authorize_manager!
     verified_manager =
       current_user.account_type == "manager" &&
@@ -167,40 +208,18 @@ class SquadSelectionsController < ApplicationController
       id: selection.id,
       match_id: selection.match_id,
       user_id: selection.user_id,
-
-      selection_type:
-        selection.selection_type,
-
-      position:
-        selection.position,
-
-      captain:
-        selection.captain,
-
-      is_left_corner_taker:
-        selection.is_left_corner_taker,
-
-      is_right_corner_taker:
-        selection.is_right_corner_taker,
-
-      is_penalty_taker:
-        selection.is_penalty_taker,
-
-      is_freekick_taker:
-        selection.is_freekick_taker,
-
+      selection_type: selection.selection_type,
+      position: selection.position,
+      captain: selection.captain,
+      is_left_corner_taker: selection.is_left_corner_taker,
+      is_right_corner_taker: selection.is_right_corner_taker,
+      is_penalty_taker: selection.is_penalty_taker,
+      is_freekick_taker: selection.is_freekick_taker,
       user: {
         id: selection.user.id,
-
-        first_name:
-          selection.user.first_name,
-
-        last_name:
-          selection.user.last_name,
-
-        email:
-          selection.user.email,
-
+        first_name: selection.user.first_name,
+        last_name: selection.user.last_name,
+        email: selection.user.email,
         avatar_url:
           selection.user.avatar.attached? ?
             url_for(selection.user.avatar) :

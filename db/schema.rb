@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_14_155148) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -145,6 +145,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_155148) do
 
   create_table "matches", force: :cascade do |t|
     t.datetime "availability_reminder_sent_at"
+    t.datetime "cancelled_at"
     t.datetime "created_at", null: false
     t.text "description"
     t.string "formation"
@@ -159,14 +160,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_155148) do
     t.bigint "team_id", null: false
     t.integer "team_score"
     t.datetime "updated_at", null: false
+    t.index ["cancelled_at"], name: "index_matches_on_cancelled_at"
     t.index ["team_id"], name: "index_matches_on_team_id"
     t.check_constraint "opponent_score >= 0", name: "matches_opponent_score_non_negative"
     t.check_constraint "team_score >= 0", name: "matches_team_score_non_negative"
   end
 
   create_table "notifications", force: :cascade do |t|
+    t.bigint "actor_id"
     t.datetime "created_at", null: false
     t.string "deduplication_key"
+    t.bigint "featured_user_id"
     t.datetime "kept_at"
     t.bigint "match_id"
     t.bigint "match_payment_id"
@@ -175,12 +179,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_155148) do
     t.datetime "opened_at"
     t.bigint "post_id"
     t.boolean "read", default: false, null: false
+    t.bigint "team_id"
     t.string "title"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["actor_id"], name: "index_notifications_on_actor_id"
+    t.index ["featured_user_id"], name: "index_notifications_on_featured_user_id"
     t.index ["match_id"], name: "index_notifications_on_match_id"
     t.index ["match_payment_id"], name: "index_notifications_on_match_payment_id"
     t.index ["post_id"], name: "index_notifications_on_post_id"
+    t.index ["team_id"], name: "index_notifications_on_team_id"
     t.index ["user_id", "deduplication_key"], name: "index_notifications_on_user_and_deduplication_key", unique: true, where: "(deduplication_key IS NOT NULL)"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
@@ -409,7 +417,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_14_155148) do
   add_foreign_key "notifications", "match_payments"
   add_foreign_key "notifications", "matches"
   add_foreign_key "notifications", "posts"
+  add_foreign_key "notifications", "teams"
   add_foreign_key "notifications", "users"
+  add_foreign_key "notifications", "users", column: "actor_id"
+  add_foreign_key "notifications", "users", column: "featured_user_id"
   add_foreign_key "post_reads", "posts"
   add_foreign_key "post_reads", "users"
   add_foreign_key "posts", "teams"

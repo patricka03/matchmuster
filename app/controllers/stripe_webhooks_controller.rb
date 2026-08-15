@@ -143,23 +143,10 @@ class StripeWebhooksController < ApplicationController
         stripe_payment_intent_id: payment_intent_id
       )
 
-      match_payment.user.notifications.create!(
-        title: "Match payment received",
-        message: payment_received_message(match_payment),
-        notification_type: "match_payment_paid",
-        match_payment_id: match_payment.id,
-        match_id: match_payment.match_id
+      NotificationEvents.payment_paid(
+        match_payment: match_payment
       )
     end
-  end
-
-  def payment_received_message(match_payment)
-    amount = format(
-      "%.2f",
-      match_payment.amount_pence / 100.0
-    )
-
-    "Your payment of £#{amount} has been received."
   end
 
   def ignore_event(event, reason)

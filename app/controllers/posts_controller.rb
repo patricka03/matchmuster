@@ -99,6 +99,12 @@ class PostsController < ApplicationController
     if @post.update(
       post_params
     )
+      if important_post_details_changed?
+        create_post_notifications(
+          updated: true
+        )
+      end
+
       render json: @post,
              status: :ok
     else
@@ -116,7 +122,7 @@ class PostsController < ApplicationController
   # ========================================
 
   def destroy
-    @post.destroy
+    @post.destroy!
 
     head :no_content
   end
@@ -241,54 +247,28 @@ class PostsController < ApplicationController
   # BACKGROUND POST NOTIFICATIONS
   # ========================================
 
-  def create_post_notifications
+  def create_post_notifications(updated: false)
     return if
       @post.post_type ==
       "general"
 
     PostNotificationJob.perform_later(
-      team_id:
-        @team.id,
-
-      post_id:
-        @post.id,
-
-      title:
-        post_notification_title,
-
-      message:
-        post_notification_message,
-
-      notification_type:
-        post_notification_type
+      team_id: @team.id,
+      post_id: @post.id,
+      updated: updated
     )
   end
 
-  # ========================================
-  # NOTIFICATION CONTENT
-  # ========================================
+  def important_post_details_changed?
+    important_fields = %w[
+      title
+      content
+      post_type
+    ]
 
-  def post_notification_title
-    case @post.post_type
-    when "announcement"
-      "New Team Announcement"
-
-    when "tactical"
-      "New Tactical Post"
-    end
-  end
-
-  def post_notification_message
-    "#{current_user.first_name} posted: #{@post.title}"
-  end
-
-  def post_notification_type
-    case @post.post_type
-    when "announcement"
-      "announcement"
-
-    when "tactical"
-      "tactical_post"
-    end
+    (
+      @post.saved_changes.keys &
+      important_fields
+    ).any?
   end
 end

@@ -5,34 +5,79 @@ class Notification < ApplicationRecord
     availability_reminder
   ].freeze
 
+  ACTIONABLE_TYPES = (
+    AVAILABILITY_ACTION_TYPES + %w[
+      match_payment_requested
+      match_payment_amount_changed
+      match_payment_reminder
+      join_request_received
+      team_join_requested
+      motm_voting_open
+      match_rating_open
+      match_rating_reminder
+    ]
+  ).uniq.freeze
+
   NOTIFICATION_TYPES = %w[
     announcement
     tactical_post
     post_created
+
     fixture_created
     fixture_updated
     fixture_cancelled
+
     availability_required
     availability_reminder
     player_availability_updated
+
     squad_selected
     squad_updated
+
     match_payment_requested
     match_payment_paid
     match_payment_waived
     match_payment_amount_changed
-    manager_status_updated
+    match_payment_reminder
+
+    join_request_received
+    membership_approved
+    membership_rejected
+    team_membership_removed
+    player_joined
+    team_updated
+
     team_join_requested
-    app_update
     team_join_approved
     team_join_rejected
+
+    motm_voting_open
+    motm_vote_received
+    motm_announced
+
     match_rating_open
     match_rating_reminder
     man_of_the_match
     match_rating_result
+
+    manager_status_updated
+    app_update
   ].freeze
 
   belongs_to :user
+
+  belongs_to :actor,
+             class_name: "User",
+             optional: true,
+             inverse_of: :sent_notifications
+
+  belongs_to :featured_user,
+             class_name: "User",
+             optional: true,
+             inverse_of: :featured_notifications
+
+  belongs_to :team,
+             optional: true
 
   belongs_to :match,
              optional: true
@@ -53,6 +98,15 @@ class Notification < ApplicationRecord
               in: NOTIFICATION_TYPES
             }
 
+  scope :newest_first,
+        -> { order(created_at: :desc) }
+
+  scope :unread,
+        -> { where(read: false, opened_at: nil) }
+
+  scope :kept,
+        -> { where.not(kept_at: nil) }
+
   # ========================================
   # IDEMPOTENT NOTIFICATIONS
   # ========================================
@@ -66,9 +120,7 @@ class Notification < ApplicationRecord
       user_id: user.id,
       deduplication_key: deduplication_key
     ) do |notification|
-      notification.assign_attributes(
-        attributes
-      )
+      notification.assign_attributes(attributes)
     end
   end
 
@@ -84,8 +136,7 @@ class Notification < ApplicationRecord
       User
         .where(
           account_type: "manager",
-          manager_verification_status:
-            "approved"
+          manager_verification_status: "approved"
         )
         .pluck(:id)
 
@@ -95,8 +146,7 @@ class Notification < ApplicationRecord
           user_id: manager_id,
           title: title,
           message: message,
-          notification_type:
-            "app_update"
+          notification_type: "app_update"
         )
       end
     end

@@ -187,7 +187,8 @@ class AvailabilitiesController < ApplicationController
     end
 
     AvailabilityReminderJob.perform_later(
-      @match.id
+      @match.id,
+      current_user.id
     )
 
     render json: {
@@ -289,10 +290,6 @@ class AvailabilitiesController < ApplicationController
     }, status: :forbidden
   end
 
-  # ========================================
-  # AVAILABILITY NOTIFICATION CLEAN-UP
-  # ========================================
-
   def clear_completed_availability_notifications
     current_user
       .notifications
@@ -308,52 +305,11 @@ class AvailabilitiesController < ApplicationController
   def notify_team_managers_of_availability_change(
     availability
   )
-    approved_managers =
-      User
-        .joins(:team_memberships)
-        .where(
-          account_type: "manager",
-
-          manager_verification_status:
-            "approved",
-
-          team_memberships: {
-            team_id: @team.id,
-            role: "manager",
-            status: "approved"
-          }
-        )
-        .distinct
-
-    player_name =
-      [
-        current_user.first_name,
-        current_user.last_name
-      ]
-        .compact
-        .join(" ")
-
-    status_text =
-      availability
-        .status
-        .to_s
-        .tr("_", " ")
-
-    approved_managers.find_each do |manager|
-      Notification.create!(
-        user: manager,
-        match: @match,
-
-        title:
-          "Player Availability Updated",
-
-        message:
-          "#{player_name} is now #{status_text} for the match against #{@match.opponent}.",
-
-        notification_type:
-          "player_availability_updated"
-      )
-    end
+    NotificationEvents.player_availability_updated(
+      match: @match,
+      player: current_user,
+      status: availability.status
+    )
   end
 
   def players_without_availability

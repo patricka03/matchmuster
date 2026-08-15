@@ -48,11 +48,28 @@ class SquadSelectionsController < ApplicationController
   end
 
   def update
+    previous_user =
+      @squad_selection.user
+
     if @squad_selection.update(
       squad_selection_params
     )
       if important_squad_details_changed?
-        create_squad_updated_notification
+        selected_user =
+          User.find(
+            @squad_selection.user_id
+          )
+
+        create_squad_updated_notification(
+          recipient: selected_user
+        )
+
+        if @squad_selection.saved_change_to_user_id? &&
+           previous_user.id != selected_user.id
+          create_squad_updated_notification(
+            recipient: previous_user
+          )
+        end
       end
 
       render json: {
@@ -72,7 +89,19 @@ class SquadSelectionsController < ApplicationController
   end
 
   def destroy
-    @squad_selection.destroy!
+    removed_player =
+      @squad_selection.user
+
+    SquadSelection.transaction do
+      @squad_selection.destroy!
+
+      NotificationEvents.squad_published(
+        match: @match,
+        actor: current_user,
+        updated: true,
+        recipient: removed_player
+      )
+    end
 
     head :no_content
   end
@@ -181,55 +210,39 @@ class SquadSelectionsController < ApplicationController
   end
 
   def create_squad_selected_notification
-    Notification.create!(
-      user: @squad_selection.user,
+    NotificationEvents.squad_published(
       match: @match,
-      title: "Squad Selected",
-      message: squad_selected_message,
-      notification_type: "squad_selected"
+      actor: current_user,
+      recipient: @squad_selection.user
     )
   end
 
-  def create_squad_updated_notification
-    Notification.create!(
-      user: @squad_selection.user,
+  def create_squad_updated_notification(
+    recipient: @squad_selection.user
+  )
+    NotificationEvents.squad_published(
       match: @match,
-      title: "Squad Updated",
-      message: squad_updated_message,
-      notification_type: "squad_updated"
+      actor: current_user,
+      updated: true,
+      recipient: recipient
     )
   end
 
   def important_squad_details_changed?
-    @squad_selection.saved_change_to_selection_type? ||
-      @squad_selection.saved_change_to_position?
-  end
+    important_fields = %w[
+      user_id
+      selection_type
+      position
+      captain
+      is_left_corner_taker
+      is_right_corner_taker
+      is_penalty_taker
+      is_freekick_taker
+    ]
 
-  def squad_selected_message
-    message =
-      "You have been selected as a #{@squad_selection.selection_type}"
-
-    if @squad_selection.position.present?
-      message +=
-        " in #{@squad_selection.position}"
-    end
-
-    "#{message} for the match against #{@match.opponent}."
-  end
-
-  def squad_updated_message
-    changed_details = []
-
-    if @squad_selection.saved_change_to_selection_type?
-      changed_details <<
-        "selection"
-    end
-
-    if @squad_selection.saved_change_to_position?
-      changed_details <<
-        "position"
-    end
-
-    "Your #{changed_details.to_sentence} has been updated for the match against #{@match.opponent}."
+    (
+      @squad_selection.saved_changes.keys &
+      important_fields
+    ).any?
   end
 end

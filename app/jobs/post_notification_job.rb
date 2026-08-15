@@ -9,9 +9,8 @@ class PostNotificationJob < ApplicationJob
   def perform(
     team_id:,
     post_id:,
-    title:,
-    message:,
-    notification_type:
+    updated: false,
+    **_legacy_attributes
   )
     team =
       Team.find_by(
@@ -28,37 +27,15 @@ class PostNotificationJob < ApplicationJob
 
     return unless post
 
-    approved_memberships =
-      team
-        .team_memberships
-        .includes(:user)
-        .where(
-          status: "approved"
-        )
-
-    approved_memberships.each do |membership|
-      next if
-        membership.user_id ==
-        post.user_id
-
-      Notification.create_once!(
-        user:
-          membership.user,
-
-        deduplication_key:
-          "post:#{post.id}:notification",
-
-        post:
-          post,
-
-        title:
-          title,
-
-        message:
-          message,
-
-        notification_type:
-          notification_type
+    if updated
+      NotificationEvents.post_updated(
+        post: post,
+        actor: post.user
+      )
+    else
+      NotificationEvents.post_created(
+        post: post,
+        actor: post.user
       )
     end
   end

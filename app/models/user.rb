@@ -20,6 +20,8 @@ class User < ApplicationRecord
   has_many :squad_selections, dependent: :destroy
   has_many :posts, dependent: :destroy
   has_many :notifications, dependent: :destroy
+  has_many :sent_notifications, class_name: "Notification", foreign_key: :actor_id, inverse_of: :actor, dependent: :nullify
+  has_many :featured_notifications, class_name: "Notification", foreign_key: :featured_user_id, inverse_of: :featured_user, dependent: :nullify
   has_many :match_payments, dependent: :destroy
   has_many :availabilities, dependent: :destroy
   has_many :matches, through: :availabilities

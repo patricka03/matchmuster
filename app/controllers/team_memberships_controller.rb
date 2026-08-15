@@ -231,34 +231,10 @@ class TeamMembershipsController < ApplicationController
   end
 
   def notify_approved_managers_of_join_request!
-    player_name = [
-      current_user.first_name,
-      current_user.last_name
-    ].compact.join(" ")
-
-    approved_team_managers.find_each do |manager|
-      manager.notifications.create!(
-        title: "New Team Join Request",
-        message: "#{player_name} wants to join #{@team.name} as a #{@team_membership.preferred_position}.",
-        notification_type: "team_join_requested"
-      )
-    end
-  end
-
-  def approved_team_managers
-    User.joins(:team_memberships)
-        .where(
-          account_type: "manager",
-          manager_verification_status: "approved"
-        )
-        .where(
-          team_memberships: {
-            team_id: @team.id,
-            role: "manager",
-            status: "approved"
-          }
-        )
-        .distinct
+    NotificationEvents.join_request_received(
+      team: @team,
+      player: current_user
+    )
   end
 
   def update_membership_status(status)
@@ -275,20 +251,11 @@ class TeamMembershipsController < ApplicationController
   end
 
   def notify_player_of_membership_status!(status)
-    approved = status == "approved"
-
-    @team_membership.user.notifications.create!(
-      title: approved ?
-        "Team Request Approved" :
-        "Team Request Rejected",
-
-      message: approved ?
-        "Your request to join #{@team.name} has been approved. Welcome to the team!" :
-        "Your request to join #{@team.name} was not approved.",
-
-      notification_type: approved ?
-        "team_join_approved" :
-        "team_join_rejected"
+    NotificationEvents.membership_updated(
+      team: @team,
+      player: @team_membership.user,
+      manager: current_user,
+      approved: status == "approved"
     )
   end
 
@@ -312,16 +279,16 @@ class TeamMembershipsController < ApplicationController
   end
 
   def remove_member_and_notify!
-    removed_player = @team_membership.user
-    team_name = @team.name
+    removed_player =
+      @team_membership.user
 
     TeamMembership.transaction do
       @team_membership.destroy!
 
-      removed_player.notifications.create!(
-        title: "Removed from Team",
-        message: "You have been removed from #{team_name} by a team manager.",
-        notification_type: "team_membership_removed"
+      NotificationEvents.membership_removed(
+        team: @team,
+        player: removed_player,
+        manager: current_user
       )
     end
   end

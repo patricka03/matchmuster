@@ -1,8 +1,6 @@
 class MatchRatingOpenJob < ApplicationJob
   queue_as :default
 
-  # Temporary database connection problems should
-  # not permanently kill the ratings-opening job.
   retry_on ActiveRecord::ConnectionNotEstablished,
            ActiveRecord::ConnectionTimeoutError,
            wait: :polynomially_longer,
@@ -47,16 +45,17 @@ class MatchRatingOpenJob < ApplicationJob
         deduplication_key:
           "match:#{match.id}:rating_open",
 
+        team: match.team,
         match: match,
 
         title:
-          "Player Ratings Are Open",
+          "MOTM Voting Is Open",
 
         message:
           "Rate the matchday squad from the match against #{match.opponent}. You have 2 hours to submit your ratings.",
 
         notification_type:
-          "match_rating_open"
+          "motm_voting_open"
       )
     end
   end

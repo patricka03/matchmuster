@@ -12,7 +12,8 @@ class FixtureNotificationJob < ApplicationJob
     message:,
     notification_type:,
     deduplication_key:,
-    match_id: nil
+    match_id: nil,
+    actor_id: nil
   )
     team =
       Team.find_by(
@@ -22,9 +23,14 @@ class FixtureNotificationJob < ApplicationJob
     return unless team
 
     match =
-      match_id.present? ?
-        Match.find_by(id: match_id) :
-        nil
+      if match_id.present?
+        Match.find_by(id: match_id)
+      end
+
+    actor =
+      if actor_id.present?
+        User.find_by(id: actor_id)
+      end
 
     approved_player_memberships =
       team
@@ -37,20 +43,17 @@ class FixtureNotificationJob < ApplicationJob
 
     approved_player_memberships.each do |membership|
       Notification.create_once!(
-        user:
-          membership.user,
+        user: membership.user,
 
         deduplication_key:
           deduplication_key,
 
-        match:
-          match,
+        actor: actor,
+        team: team,
+        match: match,
 
-        title:
-          title,
-
-        message:
-          message,
+        title: title,
+        message: message,
 
         notification_type:
           notification_type

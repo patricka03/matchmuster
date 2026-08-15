@@ -106,21 +106,18 @@ class MatchesController < ApplicationController
   # ========================================
 
   def destroy
-    team_id =
-      @match.team_id
+    if @match.cancelled_at.present?
+      return head :no_content
+    end
 
-    match_id =
-      @match.id
-
-    opponent =
-      @match.opponent
-
-    @match.destroy!
+    @match.update!(
+      cancelled_at: Time.current
+    )
 
     create_fixture_cancelled_notifications(
-      team_id: team_id,
-      match_id: match_id,
-      opponent: opponent
+      team_id: @match.team_id,
+      match_id: @match.id,
+      opponent: @match.opponent
     )
 
     head :no_content
@@ -254,25 +251,27 @@ class MatchesController < ApplicationController
   # FIXTURE CREATED NOTIFICATIONS
   # ========================================
 
-  def create_fixture_notifications
+  def create_fixture_cancelled_notifications(
+    team_id:,
+    match_id:,
+    opponent:
+  )
     FixtureNotificationJob.perform_later(
-      team_id:
-        @team.id,
-
-      match_id:
-        @match.id,
+      team_id: team_id,
+      match_id: match_id,
+      actor_id: current_user.id,
 
       title:
-        "New Fixture",
+        "Fixture Cancelled",
 
       message:
-        "#{fixture_description}. Please confirm your availability.",
+        "The fixture against #{opponent} has been cancelled.",
 
       notification_type:
-        "fixture_created",
+        "fixture_cancelled",
 
       deduplication_key:
-        "match:#{@match.id}:fixture_created"
+        "match:#{match_id}:fixture_cancelled"
     )
   end
 
@@ -287,6 +286,9 @@ class MatchesController < ApplicationController
 
       match_id:
         @match.id,
+
+      actor_id:
+        current_user.id,
 
       title:
         "Fixture Updated",
@@ -314,6 +316,9 @@ class MatchesController < ApplicationController
     FixtureNotificationJob.perform_later(
       team_id:
         team_id,
+
+      actor_id:
+        current_user.id,
 
       title:
         "Fixture Cancelled",

@@ -46,16 +46,17 @@ class MatchRatingReminderJob < ApplicationJob
         deduplication_key:
           "match:#{match.id}:rating_reminder:#{reminder_number}",
 
+        team: match.team,
         match: match,
 
         title:
-          "Ratings Reminder",
+          "MOTM Voting Reminder",
 
         message:
           "Don't forget to submit your player ratings for the match against #{match.opponent} before voting closes.",
 
         notification_type:
-          "match_rating_reminder"
+          "motm_voting_open"
       )
     end
   end

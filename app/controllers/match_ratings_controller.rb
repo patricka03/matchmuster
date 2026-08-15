@@ -60,6 +60,8 @@ class MatchRatingsController < ApplicationController
 
         created_ratings << rating
       end
+
+      notify_managers_of_rating_submission
     end
 
     render json: {
@@ -183,6 +185,17 @@ class MatchRatingsController < ApplicationController
     @match
       .rating_rater_ids
       .include?(current_user.id)
+  end
+
+  def notify_managers_of_rating_submission
+    return unless
+      current_user.account_type ==
+      "player"
+
+    NotificationEvents.motm_ratings_submitted(
+      match: @match,
+      voter: current_user
+    )
   end
 
   def rating_players_json

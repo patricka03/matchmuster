@@ -46,12 +46,15 @@ class MatchPaymentsController < ApplicationController
       }, status: :unprocessable_entity
     end
 
-    @match_payment = @match.match_payments.new(create_payment_params)
+    @match_payment = @match.match_payments.new(
+      create_payment_params
+    )
 
     if @match_payment.save
       create_match_payment_notification
 
-      render json: @match_payment, status: :created
+      render json: @match_payment,
+             status: :created
     else
       render json: {
         errors: @match_payment.errors.full_messages
@@ -121,13 +124,16 @@ class MatchPaymentsController < ApplicationController
         parsed_amount.present? &&
         parsed_amount != @match_payment.amount_pence
 
-      waiver_requested = requested_status == "waived"
+      waiver_requested =
+        requested_status == "waived"
 
       unless amount_changed || waiver_requested
-        return render json: @match_payment, status: :ok
+        return render json: @match_payment,
+                      status: :ok
       end
 
-      session_state = expire_stored_checkout_session
+      session_state =
+        expire_stored_checkout_session
 
       unless session_state == :cleared
         return render json: {
@@ -143,10 +149,14 @@ class MatchPaymentsController < ApplicationController
       attributes[:status] = "waived" if waiver_requested
 
       if @match_payment.update(attributes)
-        create_waived_notification if waiver_requested
-        create_amount_changed_notification if amount_changed
+        if waiver_requested
+          create_waived_notification
+        elsif amount_changed
+          create_amount_changed_notification
+        end
 
-        render json: @match_payment, status: :ok
+        render json: @match_payment,
+               status: :ok
       else
         render json: {
           errors: @match_payment.errors.full_messages
@@ -384,33 +394,24 @@ class MatchPaymentsController < ApplicationController
   end
 
   def create_match_payment_notification
-    @match_payment.user.notifications.create!(
-      title: "Match payment requested",
-      message: "You have been requested to pay £#{formatted_amount} for the upcoming match.",
-      notification_type: "match_payment_requested",
-      match_payment_id: @match_payment.id,
-      match_id: @match_payment.match_id
+    NotificationEvents.payment_requested(
+      match_payment: @match_payment,
+      actor: current_user
     )
   end
 
   def create_waived_notification
-    @match_payment.user.notifications.create!(
-      title: "Match payment waived",
-      message: "Your match payment of £#{formatted_amount} has been waived. You do not need to pay.",
-      notification_type: "match_payment_waived"
+    NotificationEvents.payment_waived(
+      match_payment: @match_payment,
+      actor: current_user
     )
   end
 
   def create_amount_changed_notification
-    @match_payment.user.notifications.create!(
-      title: "Match payment amount updated",
-      message: "Your match payment amount has been changed to £#{formatted_amount}.",
-      notification_type: "match_payment_amount_changed"
+    NotificationEvents.payment_updated(
+      match_payment: @match_payment,
+      actor: current_user
     )
-  end
-
-  def formatted_amount
-    format("%.2f", @match_payment.amount_pence / 100.0)
   end
 
   def expire_stored_checkout_session

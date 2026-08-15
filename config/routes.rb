@@ -169,7 +169,11 @@ Rails.application.routes.draw do
   # NOTIFICATIONS
   # ========================================
 
-  resources :notifications, only: %i[ index update destroy]
+  resources :notifications, only: %i[ index update destroy ] do
+    collection do
+      patch :mark_all_read
+    end
+  end
 
 
   # ========================================

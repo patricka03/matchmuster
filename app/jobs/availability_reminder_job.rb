@@ -6,13 +6,18 @@ class AvailabilityReminderJob < ApplicationJob
            wait: :polynomially_longer,
            attempts: 5
 
-  def perform(match_id)
+  def perform(match_id, actor_id = nil)
     match =
       Match.find_by(
         id: match_id
       )
 
     return unless match
+
+    actor =
+      User.find_by(
+        id: actor_id
+      )
 
     responded_user_ids =
       match
@@ -35,14 +40,14 @@ class AvailabilityReminderJob < ApplicationJob
 
     players_to_remind.each do |membership|
       Notification.create_once!(
-        user:
-          membership.user,
+        user: membership.user,
 
         deduplication_key:
           "match:#{match.id}:availability_reminder",
 
-        match:
-          match,
+        actor: actor,
+        team: match.team,
+        match: match,
 
         title:
           "Availability Reminder",

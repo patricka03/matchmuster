@@ -63,7 +63,10 @@ class MatchesController < ApplicationController
         )
 
     if @match.save
-      create_fixture_notifications
+      NotificationEvents.fixture_created(
+        match: @match,
+        actor: current_user
+      )
 
       render json: @match,
              status: :created

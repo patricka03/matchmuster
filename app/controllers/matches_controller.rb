@@ -36,6 +36,7 @@ class MatchesController < ApplicationController
       @team
         .matches
         .order(:kickoff_time)
+        .where(cancelled_at: nil)
 
     render json: @matches,
            status: :ok

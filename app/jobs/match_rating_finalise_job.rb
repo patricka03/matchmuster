@@ -242,12 +242,7 @@ class MatchRatingFinaliseJob < ApplicationJob
   end
 
   def display_name(user)
-    full_name =
-      [user.first_name, user.last_name]
-        .compact
-        .join(" ")
-        .strip
-
-    full_name.presence || user.email
+    user.first_name.to_s.strip.presence ||
+      user.email
   end
 end

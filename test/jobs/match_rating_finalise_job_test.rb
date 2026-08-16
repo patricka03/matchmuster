@@ -122,4 +122,49 @@ class MatchRatingFinaliseJobTest < ActiveJob::TestCase
     assert_equal 1, awards.count
     assert_equal winner, awards.first.user
   end
+  test "result notification uses only the winner first name" do
+    context = create_rating_context
+    match = context[:match]
+    winner = context[:rater]
+    other_player = context[:player]
+
+    submit_test_rating(
+      match: match,
+      rater: winner,
+      player: other_player,
+      rating: 7.0
+    )
+
+    submit_test_rating(
+      match: match,
+      rater: other_player,
+      player: winner,
+      rating: 9.0
+    )
+
+    close_rating_window(match)
+
+    MatchRatingFinaliseJob.perform_now(
+      match.id,
+      match.kickoff_time.iso8601(6)
+    )
+
+    result_notification =
+      Notification.find_by!(
+        user: other_player,
+        match: match,
+        deduplication_key:
+          "match:#{match.id}:rating_result"
+      )
+
+    assert_includes(
+      result_notification.message,
+      "#{winner.first_name} was voted Player of the Match"
+    )
+
+    assert_not_includes(
+      result_notification.message,
+      winner.last_name
+    )
+  end
 end

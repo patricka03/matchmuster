@@ -40,14 +40,57 @@ class NotificationEvents
       )
     end
 
-    def player_availability_updated(match:, player:, status:)
+    def player_availability_updated(
+      match:,
+      player:,
+      status:,
+      removed_from_squad: false
+    )
+      status_text =
+        status
+          .to_s
+          .tr("_", " ")
+
+      manager_message =
+        "#{display_name(player)} is now #{status_text} for the match against #{match.opponent}."
+
+      if removed_from_squad
+        manager_message +=
+          " They were automatically removed from the Matchday Squad."
+      end
+
       NotificationDelivery.to_managers(
         team: match.team,
         actor: player,
         match: match,
-        title: "Player availability updated",
-        message: "#{display_name(player)} is now #{status.to_s.tr('_', ' ')} for the match against #{match.opponent}.",
-        notification_type: "player_availability_updated"
+
+        title:
+          removed_from_squad ?
+            "Player unavailable - squad updated" :
+            "Player availability updated",
+
+        message:
+          manager_message,
+
+        notification_type:
+          "player_availability_updated"
+      )
+
+      return unless removed_from_squad
+
+      NotificationDelivery.to_user(
+        user: player,
+        team: match.team,
+        match: match,
+
+        title:
+          "Removed from Matchday Squad",
+
+        message:
+          "Because you marked yourself unavailable, you have been removed from the Matchday Squad for the match against #{match.opponent}.",
+
+        notification_type:
+          "squad_updated"
       )
     end
 

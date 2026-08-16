@@ -308,7 +308,9 @@ class AvailabilitiesController < ApplicationController
     NotificationEvents.player_availability_updated(
       match: @match,
       player: current_user,
-      status: availability.status
+      status: availability.status,
+      removed_from_squad:
+        availability.removed_from_matchday_squad?
     )
   end
 

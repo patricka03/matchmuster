@@ -2,18 +2,9 @@ class PostsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team
   before_action :authorize_team_member!
-  before_action :set_post,
-                only: %i[
-                  show
-                  update
-                  destroy
-                ]
-
-  before_action :authorize_post_management!,
-                only: %i[
-                  update
-                  destroy
-                ]
+  before_action :set_post, only: %i[ show update destroy ]
+  before_action :authorize_post_management!, only: %i[ update destroy ]
+  before_action :ensure_post_visible!, only: :show
 
   # ========================================
   # INDEX
@@ -23,11 +14,11 @@ class PostsController < ApplicationController
     @posts =
       @team
         .posts
-        .includes(:user)
-        .order(
-          pinned: :desc,
-          created_at: :desc
+        .where.not(
+          user_id:
+            hidden_user_ids
         )
+        .includes(:user)
 
     render json:
       @posts.as_json(
@@ -270,5 +261,32 @@ class PostsController < ApplicationController
       @post.saved_changes.keys &
       important_fields
     ).any?
+  end
+
+  def ensure_post_visible!
+    return unless
+      hidden_user_ids.include?(
+        @post.user_id
+      )
+
+    render json: {
+      error: "Post not found"
+    }, status: :not_found
+  end
+
+  def hidden_user_ids
+    @hidden_user_ids ||=
+      (
+        current_user
+          .initiated_blocks
+          .pluck(
+            :blocked_user_id
+          ) +
+        current_user
+          .received_blocks
+          .pluck(
+            :blocker_id
+          )
+      ).uniq
   end
 end

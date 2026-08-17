@@ -1,28 +1,16 @@
 class MatchRating < ApplicationRecord
   belongs_to :match
+  belongs_to :rater, class_name: "User"
+  has_many :reports, as: :reportable, dependent: :nullify
 
-  belongs_to :rater,
-             class_name: "User"
+  belongs_to :player, class_name: "User"
 
-  belongs_to :player,
-             class_name: "User"
-
-  validates :rating,
-            presence: true,
-            numericality: {
-              greater_than_or_equal_to: 1.0,
-              less_than_or_equal_to: 10.0
-            }
-
-  validates :player_id,
-            uniqueness: {
-              scope: [:match_id, :rater_id],
-              message: "has already been rated by this user for this match"
-            }
-
+  validates :rating, presence: true, numericality: { greater_than_or_equal_to: 1.0, less_than_or_equal_to: 10.0 }
+  validates :player_id, uniqueness: { scope: [:match_id, :rater_id], message: "has already been rated by this user for this match" }
   validate :cannot_rate_self
   validate :rater_must_be_eligible
   validate :player_must_be_selected
+  validates :comment, objectionable_content: true, allow_blank: true
 
   private
 

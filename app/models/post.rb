@@ -3,18 +3,17 @@ class Post < ApplicationRecord
   belongs_to :user
 
   has_many :post_reads, dependent: :destroy
-
   has_many :readers, through: :post_reads, source: :user
+  has_many :reports, as: :reportable, dependent: :nullify
 
 
   POST_TYPES = %w[announcement tactical general].freeze
 
   validates :title, :content, :post_type, presence: true
-
   validates :post_type, inclusion: { in: POST_TYPES }
-
   validate :author_must_be_approved_team_member
   validate :only_managers_can_create_manager_posts
+  validates :title, :content, objectionable_content: true
 
   private
 

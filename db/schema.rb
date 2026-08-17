@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_17_164500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,6 +51,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
     t.index ["match_id", "user_id"], name: "index_availabilities_on_match_id_and_user_id", unique: true
     t.index ["match_id"], name: "index_availabilities_on_match_id"
     t.index ["user_id"], name: "index_availabilities_on_user_id"
+  end
+
+  create_table "developer_account_actions", force: :cascade do |t|
+    t.string "action_type", null: false
+    t.datetime "created_at", null: false
+    t.bigint "developer_id", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.text "notes", null: false
+    t.bigint "target_user_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["action_type"], name: "index_developer_account_actions_on_action_type"
+    t.index ["developer_id"], name: "index_developer_account_actions_on_developer_id"
+    t.index ["target_user_id"], name: "index_developer_account_actions_on_target_user_id"
   end
 
   create_table "developers", force: :cascade do |t|
@@ -166,6 +179,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
     t.check_constraint "team_score >= 0", name: "matches_team_score_non_negative"
   end
 
+  create_table "moderation_actions", force: :cascade do |t|
+    t.string "action_type", null: false
+    t.datetime "created_at", null: false
+    t.bigint "developer_id"
+    t.jsonb "metadata", default: {}, null: false
+    t.text "notes"
+    t.bigint "report_id", null: false
+    t.bigint "target_user_id"
+    t.datetime "updated_at", null: false
+    t.index ["developer_id"], name: "index_moderation_actions_on_developer_id"
+    t.index ["report_id", "created_at"], name: "index_moderation_actions_on_report_id_and_created_at"
+    t.index ["report_id"], name: "index_moderation_actions_on_report_id"
+    t.index ["target_user_id"], name: "index_moderation_actions_on_target_user_id"
+  end
+
   create_table "notifications", force: :cascade do |t|
     t.bigint "actor_id"
     t.datetime "created_at", null: false
@@ -215,6 +243,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
     t.bigint "user_id", null: false
     t.index ["team_id"], name: "index_posts_on_team_id"
     t.index ["user_id"], name: "index_posts_on_user_id"
+  end
+
+  create_table "reports", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "details"
+    t.text "moderation_notes"
+    t.string "reason", null: false
+    t.bigint "reportable_id"
+    t.string "reportable_type"
+    t.bigint "reported_user_id"
+    t.bigint "reporter_id", null: false
+    t.datetime "reviewed_at"
+    t.bigint "reviewed_by_id"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reportable_type", "reportable_id"], name: "index_reports_on_reportable"
+    t.index ["reported_user_id"], name: "index_reports_on_reported_user_id"
+    t.index ["reporter_id"], name: "index_reports_on_reporter_id"
+    t.index ["reviewed_by_id"], name: "index_reports_on_reviewed_by_id"
+    t.index ["status", "created_at"], name: "index_reports_on_status_and_created_at"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -379,8 +427,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
     t.index ["stripe_account_id"], name: "index_teams_on_stripe_account_id", unique: true
   end
 
+  create_table "user_blocks", force: :cascade do |t|
+    t.bigint "blocked_user_id", null: false
+    t.bigint "blocker_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blocked_user_id"], name: "index_user_blocks_on_blocked_user_id"
+    t.index ["blocker_id", "blocked_user_id"], name: "index_user_blocks_on_blocker_id_and_blocked_user_id", unique: true
+    t.index ["blocker_id"], name: "index_user_blocks_on_blocker_id"
+    t.check_constraint "blocker_id <> blocked_user_id", name: "user_blocks_cannot_block_self"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "account_type"
+    t.datetime "banned_at"
     t.datetime "created_at", null: false
     t.datetime "deleted_at"
     t.string "email", default: "", null: false
@@ -392,17 +452,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
+    t.datetime "suspended_at"
+    t.text "suspension_reason"
     t.datetime "updated_at", null: false
+    t.index ["banned_at"], name: "index_users_on_banned_at"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["jti"], name: "index_users_on_jti", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["suspended_at"], name: "index_users_on_suspended_at"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
+  add_foreign_key "developer_account_actions", "developers"
+  add_foreign_key "developer_account_actions", "users", column: "target_user_id"
   add_foreign_key "legal_acceptances", "users"
   add_foreign_key "match_awards", "matches"
   add_foreign_key "match_awards", "users"
@@ -414,6 +480,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
   add_foreign_key "match_ratings", "users", column: "player_id"
   add_foreign_key "match_ratings", "users", column: "rater_id"
   add_foreign_key "matches", "teams"
+  add_foreign_key "moderation_actions", "developers"
+  add_foreign_key "moderation_actions", "reports"
+  add_foreign_key "moderation_actions", "users", column: "target_user_id"
   add_foreign_key "notifications", "match_payments"
   add_foreign_key "notifications", "matches"
   add_foreign_key "notifications", "posts"
@@ -425,6 +494,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
   add_foreign_key "post_reads", "users"
   add_foreign_key "posts", "teams"
   add_foreign_key "posts", "users"
+  add_foreign_key "reports", "developers", column: "reviewed_by_id"
+  add_foreign_key "reports", "users", column: "reported_user_id"
+  add_foreign_key "reports", "users", column: "reporter_id"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
@@ -435,4 +507,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_101626) do
   add_foreign_key "squad_selections", "users"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
+  add_foreign_key "user_blocks", "users", column: "blocked_user_id"
+  add_foreign_key "user_blocks", "users", column: "blocker_id"
 end

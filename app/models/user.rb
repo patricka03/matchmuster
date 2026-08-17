@@ -1,5 +1,6 @@
 class User < ApplicationRecord
   before_validation :set_manager_verification_status, on: :create
+  before_update :rotate_jti_when_access_status_changes
 
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
@@ -32,6 +33,13 @@ class User < ApplicationRecord
   has_many :match_ratings_received, class_name: "MatchRating", foreign_key: :player_id, dependent: :destroy
   has_many :match_awards, dependent: :destroy
   has_many :match_player_stats, foreign_key: :player_id, dependent: :destroy
+  has_many :submitted_reports, class_name: "Report", foreign_key: :reporter_id, inverse_of: :reporter, dependent: :destroy
+  has_many :received_reports, class_name: "Report", foreign_key: :reported_user_id, inverse_of: :reported_user, dependent: :nullify
+  has_many :initiated_blocks, class_name: "UserBlock", foreign_key: :blocker_id, inverse_of: :blocker, dependent: :destroy
+  has_many :blocked_users, through: :initiated_blocks, source: :blocked_user
+  has_many :received_blocks, class_name: "UserBlock", foreign_key: :blocked_user_id, inverse_of: :blocked_user, dependent: :destroy
+  has_many :blocked_by_users, through: :received_blocks, source: :blocker
+  has_many :moderation_actions_received, class_name: "ModerationAction", foreign_key: :target_user_id, inverse_of: :target_user, dependent: :nullify
 
   has_one_attached :avatar
 
@@ -56,11 +64,32 @@ class User < ApplicationRecord
     deleted_at.present?
   end
 
+  def suspended?
+    suspended_at.present?
+  end
+
+  def banned?
+    banned_at.present?
+  end
+
+  def access_restricted?
+    deleted? || suspended? || banned?
+  end
+
   def active_for_authentication?
-    super && !deleted?
+    super && !access_restricted?
   end
 
   private
+
+  def rotate_jti_when_access_status_changes
+    access_status_changed =
+      will_save_change_to_deleted_at? ||
+      will_save_change_to_suspended_at? ||
+      will_save_change_to_banned_at?
+
+    self.jti = SecureRandom.uuid if access_status_changed
+  end
 
   def set_manager_verification_status
     self.manager_verification_status = "pending" if manager?

@@ -3,9 +3,10 @@ class Team < ApplicationRecord
   has_many :users, through: :team_memberships
   has_many :matches, dependent: :destroy
   has_many :posts, dependent: :destroy
+  has_many :trainings, dependent: :destroy
 
   has_one_attached :badge
-  
+
   before_validation :generate_invite_code, on: :create
 
   validates :name, presence: true

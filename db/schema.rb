@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_17_164500) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_150735) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -427,6 +427,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_164500) do
     t.index ["stripe_account_id"], name: "index_teams_on_stripe_account_id", unique: true
   end
 
+  create_table "training_availabilities", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "status", null: false
+    t.bigint "training_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["training_id", "user_id"], name: "index_training_availabilities_on_training_id_and_user_id", unique: true
+    t.index ["training_id"], name: "index_training_availabilities_on_training_id"
+    t.index ["user_id"], name: "index_training_availabilities_on_user_id"
+  end
+
+  create_table "trainings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "location", null: false
+    t.datetime "meet_time", null: false
+    t.datetime "starts_at", null: false
+    t.bigint "team_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["team_id", "starts_at"], name: "index_trainings_on_team_id_and_starts_at"
+    t.index ["team_id"], name: "index_trainings_on_team_id"
+  end
+
   create_table "user_blocks", force: :cascade do |t|
     t.bigint "blocked_user_id", null: false
     t.bigint "blocker_id", null: false
@@ -507,6 +531,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_164500) do
   add_foreign_key "squad_selections", "users"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
+  add_foreign_key "training_availabilities", "trainings"
+  add_foreign_key "training_availabilities", "users"
+  add_foreign_key "trainings", "teams"
   add_foreign_key "user_blocks", "users", column: "blocked_user_id"
   add_foreign_key "user_blocks", "users", column: "blocker_id"
 end

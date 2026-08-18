@@ -40,6 +40,7 @@ class User < ApplicationRecord
   has_many :received_blocks, class_name: "UserBlock", foreign_key: :blocked_user_id, inverse_of: :blocked_user, dependent: :destroy
   has_many :blocked_by_users, through: :received_blocks, source: :blocker
   has_many :moderation_actions_received, class_name: "ModerationAction", foreign_key: :target_user_id, inverse_of: :target_user, dependent: :nullify
+  has_many :training_availabilities, dependent: :destroy
 
   has_one_attached :avatar
 

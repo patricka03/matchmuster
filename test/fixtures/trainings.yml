@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  team: one
+  title: MyString
+  starts_at: 2026-08-18 15:37:56
+  meet_time: 2026-08-18 15:37:56
+  location: MyString
+  description: MyText
+
+two:
+  team: two
+  title: MyString
+  starts_at: 2026-08-18 15:37:56
+  meet_time: 2026-08-18 15:37:56
+  location: MyString
+  description: MyText

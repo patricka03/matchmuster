@@ -130,6 +130,19 @@ Rails.application.routes.draw do
       resources :post_reads, only: %i[index create]
     end
 
+    # ========================================
+    # TRAINING
+    # ========================================
+
+    resources :trainings,
+              only: %i[ index show create update destroy ] do
+                resources :training_availabilities,
+                only: %i[ index create update ] do
+                  collection do
+                    get :mine
+                  end
+                end
+              end
 
     # ========================================
     # MATCHES

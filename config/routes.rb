@@ -96,6 +96,17 @@ Rails.application.routes.draw do
 
 
   # ========================================
+  # PUSH DEVICES
+  # ========================================
+
+  post "/push_devices",
+       to: "push_devices#create"
+
+  delete "/push_devices",
+         to: "push_devices#destroy"
+
+
+  # ========================================
   # STRIPE
   # ========================================
 
@@ -108,7 +119,8 @@ Rails.application.routes.draw do
   # ========================================
 
   resources :teams do
-    get "awards", to: "team_awards#show"
+    get "awards",
+        to: "team_awards#show"
 
     member do
       post :stripe_connect
@@ -127,22 +139,38 @@ Rails.application.routes.draw do
                 update
                 destroy
               ] do
-      resources :post_reads, only: %i[index create]
+      resources :post_reads,
+                only: %i[
+                  index
+                  create
+                ]
     end
+
 
     # ========================================
     # TRAINING
     # ========================================
 
     resources :trainings,
-              only: %i[ index show create update destroy ] do
-                resources :training_availabilities,
-                only: %i[ index create update ] do
-                  collection do
-                    get :mine
-                  end
-                end
-              end
+              only: %i[
+                index
+                show
+                create
+                update
+                destroy
+              ] do
+      resources :training_availabilities,
+                only: %i[
+                  index
+                  create
+                  update
+                ] do
+        collection do
+          get :mine
+        end
+      end
+    end
+
 
     # ========================================
     # MATCHES
@@ -156,13 +184,22 @@ Rails.application.routes.draw do
                 update
                 destroy
               ] do
-      resources :match_player_stats, only: %i[index create]
+      resources :match_player_stats,
+                only: %i[
+                  index
+                  create
+                ]
+
 
       # ----------------------------------------
       # AVAILABILITIES
       # ----------------------------------------
 
-      resources :availabilities, only: %i[index create] do
+      resources :availabilities,
+                only: %i[
+                  index
+                  create
+                ] do
         collection do
           get :mine
           post :remind
@@ -174,10 +211,16 @@ Rails.application.routes.draw do
       # MATCH RATINGS
       # ----------------------------------------
 
-      resources :match_ratings, only: %i[create]
+      resources :match_ratings,
+                only: %i[
+                  create
+                ]
 
-      get "rating_status", to: "match_ratings#status"
-      get "rating_results", to: "match_ratings#results"
+      get "rating_status",
+          to: "match_ratings#status"
+
+      get "rating_results",
+          to: "match_ratings#results"
 
 
       # ----------------------------------------
@@ -185,7 +228,12 @@ Rails.application.routes.draw do
       # ----------------------------------------
 
       resources :squad_selections,
-                only: %i[index create update destroy]
+                only: %i[
+                  index
+                  create
+                  update
+                  destroy
+                ]
 
 
       # ----------------------------------------
@@ -193,7 +241,13 @@ Rails.application.routes.draw do
       # ----------------------------------------
 
       resources :match_payments,
-                only: %i[index show create update destroy] do
+                only: %i[
+                  index
+                  show
+                  create
+                  update
+                  destroy
+                ] do
         collection do
           get :summary
           post :bulk_create
@@ -210,7 +264,11 @@ Rails.application.routes.draw do
     # TEAM MEMBERSHIPS
     # ========================================
 
-    resources :team_memberships, only: %i[index create]
+    resources :team_memberships,
+              only: %i[
+                index
+                create
+              ]
   end
 
 
@@ -218,23 +276,39 @@ Rails.application.routes.draw do
   # AVAILABILITY UPDATE
   # ========================================
 
-  resources :availabilities, only: %i[update]
+  resources :availabilities,
+            only: %i[
+              update
+            ]
 
 
   # ========================================
   # REPORTING AND BLOCKING
   # ========================================
 
-  resources :reports, only: %i[create]
+  resources :reports,
+            only: %i[
+              create
+            ]
 
-  resources :user_blocks, only: %i[index create destroy]
+  resources :user_blocks,
+            only: %i[
+              index
+              create
+              destroy
+            ]
 
 
   # ========================================
   # NOTIFICATIONS
   # ========================================
 
-  resources :notifications, only: %i[index update destroy] do
+  resources :notifications,
+            only: %i[
+              index
+              update
+              destroy
+            ] do
     collection do
       patch :mark_all_read
     end
@@ -245,7 +319,10 @@ Rails.application.routes.draw do
   # TEAM MEMBERSHIP ACTIONS
   # ========================================
 
-  resources :team_memberships, only: %i[destroy] do
+  resources :team_memberships,
+            only: %i[
+              destroy
+            ] do
     collection do
       post :join
     end

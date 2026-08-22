@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_19_141227) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_22_131118) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -243,6 +243,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_141227) do
     t.bigint "user_id", null: false
     t.index ["team_id"], name: "index_posts_on_team_id"
     t.index ["user_id"], name: "index_posts_on_user_id"
+  end
+
+  create_table "push_devices", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "platform", null: false
+    t.text "token", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["token"], name: "index_push_devices_on_token", unique: true
+    t.index ["user_id"], name: "index_push_devices_on_user_id"
   end
 
   create_table "reports", force: :cascade do |t|
@@ -520,6 +530,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_141227) do
   add_foreign_key "post_reads", "users"
   add_foreign_key "posts", "teams"
   add_foreign_key "posts", "users"
+  add_foreign_key "push_devices", "users"
   add_foreign_key "reports", "developers", column: "reviewed_by_id"
   add_foreign_key "reports", "users", column: "reported_user_id"
   add_foreign_key "reports", "users", column: "reporter_id"

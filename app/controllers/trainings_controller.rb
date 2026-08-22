@@ -213,7 +213,6 @@ class TrainingsController < ApplicationController
   # ========================================
   # STRONG PARAMS
   # ========================================
-
   def training_params
     params
       .require(:training)
@@ -222,7 +221,9 @@ class TrainingsController < ApplicationController
         :starts_at,
         :meet_time,
         :location,
-        :description
+        :description,
+        :latitude,
+        :longitude
       )
   end
 end

@@ -34,6 +34,25 @@ class TeamEntitlement < ApplicationRecord
     apple
   ].freeze
 
+  BILLING_PERIODS = %w[
+    monthly
+    annual
+  ].freeze
+
+  validates :billing_period,
+            inclusion: {
+              in: BILLING_PERIODS
+            },
+            allow_nil: true
+
+  validates :provider_product_id,
+            presence: true,
+            if: :paid?
+
+  validate :paid_entitlement_has_billing_period
+
+  validate :google_play_entitlement_has_base_plan
+
   belongs_to :team
 
   validates :plan,
@@ -157,6 +176,32 @@ class TeamEntitlement < ApplicationRecord
     errors.add(
       :ends_at,
       "must be after the entitlement start time"
+    )
+  end
+
+  def paid_entitlement_has_billing_period
+  return unless paid?
+
+  return if
+    billing_period.present?
+
+  errors.add(
+    :billing_period,
+    "must be present for paid Plus"
+  )
+end
+
+  def google_play_entitlement_has_base_plan
+    return unless
+      provider ==
+        "google_play"
+
+    return if
+      provider_base_plan_id.present?
+
+    errors.add(
+      :provider_base_plan_id,
+      "must be present for Google Play subscriptions"
     )
   end
 end

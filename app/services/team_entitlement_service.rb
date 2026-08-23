@@ -1,62 +1,41 @@
 class TeamEntitlementService
-  STANDARD_TRIAL_LENGTH =
-    30.days
-
-  FOUNDER_PLUS_LENGTH =
-    8.weeks
+  STANDARD_TRIAL_LENGTH = 30.days
+  FOUNDER_PLUS_LENGTH = 8.weeks
 
   class << self
-    def start_standard_trial!(
-      team:,
-      starts_at: Time.current
-    )
-      entitlement =
-        entitlement_for(
-          team
-        )
+    def start_standard_trial!(team:, starts_at: Time.current)
+      entitlement = entitlement_for(team)
 
       entitlement.assign_attributes(
         plan: "plus",
         status: "trialing",
         source: "standard_trial",
         starts_at: starts_at,
-        ends_at:
-          starts_at +
-          STANDARD_TRIAL_LENGTH,
+        ends_at: starts_at + STANDARD_TRIAL_LENGTH,
         provider: nil,
         provider_subscription_id: nil,
         auto_renews: false
       )
 
       entitlement.save!
-
       entitlement
     end
 
-    def grant_founder_plus!(
-      team:,
-      starts_at: Time.current
-    )
-      entitlement =
-        entitlement_for(
-          team
-        )
+    def grant_founder_plus!(team:, starts_at: Time.current)
+      entitlement = entitlement_for(team)
 
       entitlement.assign_attributes(
         plan: "plus",
         status: "complimentary",
         source: "founder",
         starts_at: starts_at,
-        ends_at:
-          starts_at +
-          FOUNDER_PLUS_LENGTH,
+        ends_at: starts_at + FOUNDER_PLUS_LENGTH,
         provider: nil,
         provider_subscription_id: nil,
         auto_renews: false
       )
 
       entitlement.save!
-
       entitlement
     end
 
@@ -64,48 +43,44 @@ class TeamEntitlementService
       team:,
       provider:,
       provider_subscription_id:,
+      billing_period:,
       starts_at:,
       ends_at:,
       auto_renews: true
     )
-      provider =
-        provider.to_s
+      provider = provider.to_s
+      billing_period = billing_period.to_s
 
-      unless TeamEntitlement::PROVIDERS.include?(
-        provider
-      )
+      unless TeamEntitlement::PROVIDERS.include?(provider)
         raise ArgumentError,
               "Unsupported subscription provider: #{provider}"
       end
 
-      entitlement =
-        entitlement_for(
-          team
-        )
+      entitlement = entitlement_for(team)
 
-      entitlement.assign_attributes(
+      attributes = {
         plan: "plus",
         status: "active",
         source: provider,
         starts_at: starts_at,
         ends_at: ends_at,
         provider: provider,
-        provider_subscription_id:
-          provider_subscription_id,
+        provider_subscription_id: provider_subscription_id,
         auto_renews: auto_renews
-      )
+      }
 
+      # Saves the billing period only when that database column exists.
+      attributes[:billing_period] = billing_period if
+        entitlement.has_attribute?(:billing_period)
+
+      entitlement.assign_attributes(attributes)
       entitlement.save!
 
       entitlement
     end
 
-    def cancel_paid_plus!(
-      team:,
-      access_until:
-    )
-      entitlement =
-        team.team_entitlement
+    def cancel_paid_plus!(team:, access_until:)
+      entitlement = team.team_entitlement
 
       unless entitlement&.paid?
         raise ArgumentError,
@@ -122,12 +97,8 @@ class TeamEntitlementService
       entitlement
     end
 
-    def start_grace_period!(
-      team:,
-      ends_at:
-    )
-      entitlement =
-        team.team_entitlement
+    def start_grace_period!(team:, ends_at:)
+      entitlement = team.team_entitlement
 
       unless entitlement&.paid?
         raise ArgumentError,
@@ -137,15 +108,15 @@ class TeamEntitlementService
       entitlement.update!(
         plan: "plus",
         status: "grace_period",
-        ends_at: ends_at
+        ends_at: ends_at,
+        auto_renews: false
       )
 
       entitlement
     end
 
     def expire!(team:)
-      entitlement =
-        team.team_entitlement
+      entitlement = team.team_entitlement
 
       return unless entitlement
 

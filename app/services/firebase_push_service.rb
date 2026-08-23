@@ -108,7 +108,10 @@ class FirebasePushService
             },
             data: normalize_data(data),
             android: {
-              priority: "high"
+              priority: "high",
+              notification: {
+                channel_id: "matchmuster_alerts"
+              }
             }
           }
         }.to_json

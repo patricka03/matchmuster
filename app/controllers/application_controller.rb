@@ -29,6 +29,25 @@ class ApplicationController < ActionController::API
     }, status: :unauthorized
   end
 
+  def require_plus!(
+    team:,
+    feature:
+  )
+    return true if
+      PlusAccess.allowed?(
+        team: team,
+        feature: feature
+      )
+
+    render json:
+      PlusAccess.denial_payload(
+        feature: feature
+      ),
+      status: :forbidden
+
+    false
+  end
+
   def allow_browser
     request.session_options[:skip] = true
   end

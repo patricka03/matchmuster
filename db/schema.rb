@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_200309) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_202508) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -427,10 +427,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_200309) do
     t.string "provider_subscription_id"
     t.bigint "team_id"
     t.datetime "updated_at", null: false
+    t.datetime "verification_checked_at"
+    t.text "verification_error"
+    t.string "verification_status", default: "pending", null: false
     t.index ["processing_status", "created_at"], name: "idx_store_events_processing_status"
     t.index ["provider", "provider_event_id"], name: "idx_store_events_provider_event", unique: true
     t.index ["provider", "provider_subscription_id"], name: "idx_store_events_provider_subscription"
     t.index ["team_id"], name: "index_store_subscription_events_on_team_id"
+    t.index ["verification_status", "created_at"], name: "idx_store_events_verification_status"
   end
 
   create_table "team_entitlements", force: :cascade do |t|

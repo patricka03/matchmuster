@@ -17,6 +17,13 @@ class StoreSubscriptionEvent < ApplicationRecord
     ignored
   ].freeze
 
+  VERIFICATION_STATUSES = %w[
+    pending
+    verified
+    failed
+    rejected
+  ].freeze
+
   belongs_to :team,
              optional: true
 
@@ -47,6 +54,12 @@ class StoreSubscriptionEvent < ApplicationRecord
               in: PROCESSING_STATUSES
             }
 
+  validates :verification_status,
+            presence: true,
+            inclusion: {
+              in: VERIFICATION_STATUSES
+            }
+
   validate :metadata_must_be_an_object
 
   scope :pending,
@@ -60,6 +73,13 @@ class StoreSubscriptionEvent < ApplicationRecord
         -> {
           where(
             team_id: nil
+          )
+        }
+
+  scope :awaiting_verification,
+        -> {
+          where(
+            verification_status: "pending"
           )
         }
 
@@ -77,6 +97,22 @@ class StoreSubscriptionEvent < ApplicationRecord
 
   def ignored?
     processing_status == "ignored"
+  end
+
+  def verification_pending?
+    verification_status == "pending"
+  end
+
+  def verified?
+    verification_status == "verified"
+  end
+
+  def verification_failed?
+    verification_status == "failed"
+  end
+
+  def verification_rejected?
+    verification_status == "rejected"
   end
 
   def mark_processing!
@@ -107,6 +143,36 @@ class StoreSubscriptionEvent < ApplicationRecord
       processing_status: "ignored",
       processed_at: at,
       processing_error: reason.to_s
+    )
+  end
+
+  def mark_verified!(at: Time.current)
+    update!(
+      verification_status: "verified",
+      verification_checked_at: at,
+      verification_error: nil
+    )
+  end
+
+  def mark_verification_failed!(
+    error:,
+    at: Time.current
+  )
+    update!(
+      verification_status: "failed",
+      verification_checked_at: at,
+      verification_error: error.to_s
+    )
+  end
+
+  def mark_verification_rejected!(
+    reason:,
+    at: Time.current
+  )
+    update!(
+      verification_status: "rejected",
+      verification_checked_at: at,
+      verification_error: reason.to_s
     )
   end
 

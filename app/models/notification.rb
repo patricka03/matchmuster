@@ -62,6 +62,8 @@ class Notification < ApplicationRecord
 
     manager_status_updated
     app_update
+
+    training_availability_updated
   ].freeze
 
   belongs_to :user

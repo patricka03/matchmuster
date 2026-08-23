@@ -347,6 +347,27 @@ class NotificationEvents
       )
     end
 
+    def training_availability_updated(
+      training:,
+      player:,
+      status:
+    )
+      status_text =
+        status
+          .to_s
+          .tr("_", " ")
+
+      NotificationDelivery.to_managers(
+        team: training.team,
+        actor: player,
+        title: "Training availability updated",
+        message:
+          "#{display_name(player)} is now #{status_text} for training.",
+        notification_type:
+          "training_availability_updated"
+      )
+    end
+
     private
 
     def notify_players_for_match(match, **attributes)

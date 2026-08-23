@@ -133,6 +133,10 @@ class TrainingAvailabilitiesController < ApplicationController
       current_user
 
     if availability.save
+      notify_team_managers_of_availability_change(
+        availability
+      )
+
       render json: availability,
              status: :created
     else
@@ -153,6 +157,12 @@ class TrainingAvailabilitiesController < ApplicationController
     if @training_availability.update(
       training_availability_params
     )
+      if @training_availability.saved_change_to_status?
+        notify_team_managers_of_availability_change(
+          @training_availability
+        )
+      end
+
       render json:
         @training_availability,
         status: :ok
@@ -295,6 +305,20 @@ class TrainingAvailabilitiesController < ApplicationController
           id: params[:id],
           user_id: current_user.id
         )
+  end
+
+  # ========================================
+  # NOTIFY MANAGERS
+  # ========================================
+
+  def notify_team_managers_of_availability_change(
+    availability
+  )
+    NotificationEvents.training_availability_updated(
+      training: @training,
+      player: current_user,
+      status: availability.status
+    )
   end
 
   # ========================================

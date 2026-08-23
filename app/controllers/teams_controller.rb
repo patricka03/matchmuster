@@ -35,7 +35,10 @@ class TeamsController < ApplicationController
   end
 
   def create
-    @team = Team.new(team_params)
+    @team =
+      Team.new(
+        team_params
+      )
 
     ActiveRecord::Base.transaction do
       @team.save!
@@ -47,12 +50,20 @@ class TeamsController < ApplicationController
         status: "approved",
         preferred_position: "CM"
       )
+
+      TeamEntitlementService.start_standard_trial!(
+        team: @team
+      )
     end
 
-    render json: team_response(@team), status: :created
+    render json:
+      team_response(@team),
+      status: :created
+
   rescue ActiveRecord::RecordInvalid => error
     render json: {
-      errors: error.record.errors.full_messages
+      errors:
+        error.record.errors.full_messages
     }, status: :unprocessable_entity
   end
 

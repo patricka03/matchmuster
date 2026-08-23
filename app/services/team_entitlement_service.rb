@@ -6,10 +6,14 @@ class TeamEntitlementService
     8.weeks
 
   class << self
-    def start_standard_trial!(team:, starts_at: Time.current)
+    def start_standard_trial!(
+      team:,
+      starts_at: Time.current
+    )
       entitlement =
-        team.team_entitlement ||
-        team.build_team_entitlement
+        entitlement_for(
+          team
+        )
 
       entitlement.assign_attributes(
         plan: "plus",
@@ -34,8 +38,9 @@ class TeamEntitlementService
       starts_at: Time.current
     )
       entitlement =
-        team.team_entitlement ||
-        team.build_team_entitlement
+        entitlement_for(
+          team
+        )
 
       entitlement.assign_attributes(
         plan: "plus",
@@ -55,6 +60,89 @@ class TeamEntitlementService
       entitlement
     end
 
+    def activate_paid_plus!(
+      team:,
+      provider:,
+      provider_subscription_id:,
+      starts_at:,
+      ends_at:,
+      auto_renews: true
+    )
+      provider =
+        provider.to_s
+
+      unless TeamEntitlement::PROVIDERS.include?(
+        provider
+      )
+        raise ArgumentError,
+              "Unsupported subscription provider: #{provider}"
+      end
+
+      entitlement =
+        entitlement_for(
+          team
+        )
+
+      entitlement.assign_attributes(
+        plan: "plus",
+        status: "active",
+        source: provider,
+        starts_at: starts_at,
+        ends_at: ends_at,
+        provider: provider,
+        provider_subscription_id:
+          provider_subscription_id,
+        auto_renews: auto_renews
+      )
+
+      entitlement.save!
+
+      entitlement
+    end
+
+    def cancel_paid_plus!(
+      team:,
+      access_until:
+    )
+      entitlement =
+        team.team_entitlement
+
+      unless entitlement&.paid?
+        raise ArgumentError,
+              "Team does not have a paid Plus subscription"
+      end
+
+      entitlement.update!(
+        plan: "plus",
+        status: "cancelled",
+        ends_at: access_until,
+        auto_renews: false
+      )
+
+      entitlement
+    end
+
+    def start_grace_period!(
+      team:,
+      ends_at:
+    )
+      entitlement =
+        team.team_entitlement
+
+      unless entitlement&.paid?
+        raise ArgumentError,
+              "Team does not have a paid Plus subscription"
+      end
+
+      entitlement.update!(
+        plan: "plus",
+        status: "grace_period",
+        ends_at: ends_at
+      )
+
+      entitlement
+    end
+
     def expire!(team:)
       entitlement =
         team.team_entitlement
@@ -68,6 +156,13 @@ class TeamEntitlementService
       )
 
       entitlement
+    end
+
+    private
+
+    def entitlement_for(team)
+      team.team_entitlement ||
+        team.build_team_entitlement
     end
   end
 end

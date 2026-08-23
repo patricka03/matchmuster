@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_183003) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_200309) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -413,6 +413,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_183003) do
     t.index ["user_id"], name: "index_squad_selections_on_user_id"
   end
 
+  create_table "store_subscription_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "environment", null: false
+    t.string "event_type", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "occurred_at"
+    t.datetime "processed_at"
+    t.text "processing_error"
+    t.string "processing_status", default: "pending", null: false
+    t.string "provider", null: false
+    t.string "provider_event_id", null: false
+    t.string "provider_subscription_id"
+    t.bigint "team_id"
+    t.datetime "updated_at", null: false
+    t.index ["processing_status", "created_at"], name: "idx_store_events_processing_status"
+    t.index ["provider", "provider_event_id"], name: "idx_store_events_provider_event", unique: true
+    t.index ["provider", "provider_subscription_id"], name: "idx_store_events_provider_subscription"
+    t.index ["team_id"], name: "index_store_subscription_events_on_team_id"
+  end
+
   create_table "team_entitlements", force: :cascade do |t|
     t.boolean "auto_renews", default: false, null: false
     t.string "billing_period"
@@ -561,6 +581,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_183003) do
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "squad_selections", "matches"
   add_foreign_key "squad_selections", "users"
+  add_foreign_key "store_subscription_events", "teams"
   add_foreign_key "team_entitlements", "teams"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"

@@ -251,23 +251,94 @@ class TeamsController < ApplicationController
   end
 
   def team_response(team)
-    membership = approved_membership(team)
+    membership =
+      approved_membership(team)
 
     response = {
       id: team.id,
       name: team.name,
       description: team.description,
-      badge_url: team.badge.attached? ? url_for(team.badge) : nil,
-      membership_id: membership&.id,
-      membership_role: membership&.role
+      badge_url:
+        team.badge.attached? ?
+          url_for(team.badge) :
+          nil,
+      membership_id:
+        membership&.id,
+      membership_role:
+        membership&.role
     }
 
     if current_user.account_type == "manager" &&
       membership&.role == "manager"
-      response[:invite_code] = team.invite_code
+
+      response[:invite_code] =
+        team.invite_code
+
+      response[:subscription] =
+        team_subscription_response(
+          team
+        )
     end
 
     response
+  end
+
+  def team_subscription_response(team)
+    entitlement =
+      team.team_entitlement
+
+    unless entitlement
+      return {
+        plan: "free",
+        status: "free",
+        source: nil,
+        plus_active: false,
+        days_remaining: nil,
+        starts_at: nil,
+        ends_at: nil,
+        auto_renews: false
+      }
+    end
+
+    now =
+      Time.current
+
+    plus_active =
+      entitlement.plus_active?(
+        at: now
+      )
+
+    {
+      plan:
+        entitlement.effective_plan(
+          at: now
+        ),
+
+      status:
+        plus_active ?
+          entitlement.status :
+          "expired",
+
+      source:
+        entitlement.source,
+
+      plus_active:
+        plus_active,
+
+      days_remaining:
+        entitlement.days_remaining(
+          at: now
+        ),
+
+      starts_at:
+        entitlement.starts_at,
+
+      ends_at:
+        entitlement.ends_at,
+
+      auto_renews:
+        entitlement.auto_renews
+    }
   end
 
   def require_manager!

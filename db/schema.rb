@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_22_131118) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_170430) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -413,6 +413,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_131118) do
     t.index ["user_id"], name: "index_squad_selections_on_user_id"
   end
 
+  create_table "team_entitlements", force: :cascade do |t|
+    t.boolean "auto_renews", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "ends_at"
+    t.string "plan", null: false
+    t.string "provider"
+    t.string "provider_subscription_id"
+    t.string "source", null: false
+    t.datetime "starts_at", null: false
+    t.string "status", null: false
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider_subscription_id"], name: "index_team_entitlements_on_provider_subscription_id", unique: true, where: "(provider_subscription_id IS NOT NULL)"
+    t.index ["team_id"], name: "index_team_entitlements_on_team_id", unique: true
+  end
+
   create_table "team_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "preferred_position"
@@ -542,6 +558,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_131118) do
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "squad_selections", "matches"
   add_foreign_key "squad_selections", "users"
+  add_foreign_key "team_entitlements", "teams"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
   add_foreign_key "training_availabilities", "trainings"

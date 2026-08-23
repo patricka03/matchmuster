@@ -3,19 +3,19 @@ class CreateTeamEntitlements < ActiveRecord::Migration[8.1]
     create_table :team_entitlements do |t|
       t.references :team,
                    null: false,
-                   foreign_key: true
+                   foreign_key: true,
+                   index: {
+                     unique: true
+                   }
 
       t.string :plan,
-               null: false,
-               default: "plus"
+               null: false
 
       t.string :status,
-               null: false,
-               default: "trialing"
+               null: false
 
       t.string :source,
-               null: false,
-               default: "standard_trial"
+               null: false
 
       t.datetime :starts_at,
                  null: false
@@ -32,10 +32,6 @@ class CreateTeamEntitlements < ActiveRecord::Migration[8.1]
 
       t.timestamps
     end
-
-    add_index :team_entitlements,
-              :team_id,
-              unique: true
 
     add_index :team_entitlements,
               :provider_subscription_id,

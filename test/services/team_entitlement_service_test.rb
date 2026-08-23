@@ -28,6 +28,11 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
         provider: "google_play",
         provider_subscription_id:
           "google-test-subscription-1",
+        billing_period: "monthly",
+        provider_product_id:
+          "matchmuster_plus",
+        provider_base_plan_id:
+          "monthly",
         starts_at:
           @starts_at + 5.days,
         ends_at:
@@ -66,6 +71,21 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
       entitlement.provider_subscription_id
     )
 
+    assert_equal(
+      "monthly",
+      entitlement.billing_period
+    )
+
+    assert_equal(
+      "matchmuster_plus",
+      entitlement.provider_product_id
+    )
+
+    assert_equal(
+      "monthly",
+      entitlement.provider_base_plan_id
+    )
+
     assert(
       entitlement.auto_renews
     )
@@ -82,6 +102,9 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
         provider: "apple",
         provider_subscription_id:
           "apple-test-subscription-1",
+        billing_period: "annual",
+        provider_product_id:
+          "matchmuster_plus_annual",
         starts_at: @starts_at,
         ends_at:
           @starts_at + 1.year,
@@ -96,6 +119,20 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
     assert_equal(
       "active",
       entitlement.status
+    )
+
+    assert_equal(
+      "annual",
+      entitlement.billing_period
+    )
+
+    assert_equal(
+      "matchmuster_plus_annual",
+      entitlement.provider_product_id
+    )
+
+    assert_nil(
+      entitlement.provider_base_plan_id
     )
 
     assert(
@@ -117,6 +154,11 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
       provider: "google_play",
       provider_subscription_id:
         "google-cancelled-subscription",
+      billing_period: "monthly",
+      provider_product_id:
+        "matchmuster_plus",
+      provider_base_plan_id:
+        "monthly",
       starts_at: @starts_at,
       ends_at: paid_until,
       auto_renews: true
@@ -169,6 +211,11 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
       provider: "google_play",
       provider_subscription_id:
         "google-grace-subscription",
+      billing_period: "monthly",
+      provider_product_id:
+        "matchmuster_plus",
+      provider_base_plan_id:
+        "monthly",
       starts_at: @starts_at,
       ends_at: original_end,
       auto_renews: true
@@ -182,6 +229,10 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
 
     assert(
       entitlement.grace_period?
+    )
+
+    assert_not(
+      entitlement.auto_renews
     )
 
     assert(
@@ -211,6 +262,30 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
         provider: "fake_store",
         provider_subscription_id:
           "fake-subscription",
+        billing_period: "monthly",
+        provider_product_id:
+          "fake-product",
+        starts_at: @starts_at,
+        ends_at:
+          @starts_at + 30.days
+      )
+    end
+  end
+
+  test "invalid store product is rejected" do
+    assert_raises(
+      BillingProductCatalog::UnknownProduct
+    ) do
+      TeamEntitlementService.activate_paid_plus!(
+        team: @team,
+        provider: "google_play",
+        provider_subscription_id:
+          "invalid-product-subscription",
+        billing_period: "monthly",
+        provider_product_id:
+          "wrong-product",
+        provider_base_plan_id:
+          "monthly",
         starts_at: @starts_at,
         ends_at:
           @starts_at + 30.days
@@ -228,6 +303,11 @@ class TeamEntitlementServiceTest < ActiveSupport::TestCase
         provider: "google_play",
         provider_subscription_id:
           "invalid-date-subscription",
+        billing_period: "monthly",
+        provider_product_id:
+          "matchmuster_plus",
+        provider_base_plan_id:
+          "monthly",
         starts_at: @starts_at,
         ends_at:
           @starts_at - 1.day,

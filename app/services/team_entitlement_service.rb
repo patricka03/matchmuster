@@ -14,6 +14,9 @@ class TeamEntitlementService
         ends_at: starts_at + STANDARD_TRIAL_LENGTH,
         provider: nil,
         provider_subscription_id: nil,
+        billing_period: nil,
+        provider_product_id: nil,
+        provider_base_plan_id: nil,
         auto_renews: false
       )
 
@@ -32,6 +35,9 @@ class TeamEntitlementService
         ends_at: starts_at + FOUNDER_PLUS_LENGTH,
         provider: nil,
         provider_subscription_id: nil,
+        billing_period: nil,
+        provider_product_id: nil,
+        provider_base_plan_id: nil,
         auto_renews: false
       )
 
@@ -44,38 +50,53 @@ class TeamEntitlementService
       provider:,
       provider_subscription_id:,
       billing_period:,
+      provider_product_id:,
+      provider_base_plan_id: nil,
       starts_at:,
       ends_at:,
       auto_renews: true
     )
       provider = provider.to_s
       billing_period = billing_period.to_s
+      provider_subscription_id =
+        provider_subscription_id.to_s
+      provider_product_id =
+        provider_product_id.to_s
+      provider_base_plan_id =
+        provider_base_plan_id.to_s.presence
 
       unless TeamEntitlement::PROVIDERS.include?(provider)
         raise ArgumentError,
               "Unsupported subscription provider: #{provider}"
       end
 
+      BillingProductCatalog.validate_identity!(
+        provider: provider,
+        billing_period: billing_period,
+        product_id: provider_product_id,
+        base_plan_id: provider_base_plan_id
+      )
+
       entitlement = entitlement_for(team)
 
-      attributes = {
+      entitlement.assign_attributes(
         plan: "plus",
         status: "active",
         source: provider,
         starts_at: starts_at,
         ends_at: ends_at,
         provider: provider,
-        provider_subscription_id: provider_subscription_id,
+        provider_subscription_id:
+          provider_subscription_id,
+        billing_period: billing_period,
+        provider_product_id:
+          provider_product_id,
+        provider_base_plan_id:
+          provider_base_plan_id,
         auto_renews: auto_renews
-      }
+      )
 
-      # Saves the billing period only when that database column exists.
-      attributes[:billing_period] = billing_period if
-        entitlement.has_attribute?(:billing_period)
-
-      entitlement.assign_attributes(attributes)
       entitlement.save!
-
       entitlement
     end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_170430) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_183003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -415,10 +415,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_170430) do
 
   create_table "team_entitlements", force: :cascade do |t|
     t.boolean "auto_renews", default: false, null: false
+    t.string "billing_period"
     t.datetime "created_at", null: false
     t.datetime "ends_at"
     t.string "plan", null: false
     t.string "provider"
+    t.string "provider_base_plan_id"
+    t.string "provider_product_id"
     t.string "provider_subscription_id"
     t.string "source", null: false
     t.datetime "starts_at", null: false

@@ -39,20 +39,6 @@ class TeamEntitlement < ApplicationRecord
     annual
   ].freeze
 
-  validates :billing_period,
-            inclusion: {
-              in: BILLING_PERIODS
-            },
-            allow_nil: true
-
-  validates :provider_product_id,
-            presence: true,
-            if: :paid?
-
-  validate :paid_entitlement_has_billing_period
-
-  validate :google_play_entitlement_has_base_plan
-
   belongs_to :team
 
   validates :plan,
@@ -79,6 +65,12 @@ class TeamEntitlement < ApplicationRecord
             },
             allow_nil: true
 
+  validates :billing_period,
+            inclusion: {
+              in: BILLING_PERIODS
+            },
+            allow_nil: true
+
   validates :starts_at,
             presence: true
 
@@ -88,6 +80,24 @@ class TeamEntitlement < ApplicationRecord
   validates :provider_subscription_id,
             uniqueness: true,
             allow_nil: true
+
+  validates :provider,
+            presence: true,
+            if: :paid?
+
+  validates :provider_subscription_id,
+            presence: true,
+            if: :paid?
+
+  validates :provider_product_id,
+            presence: true,
+            if: :paid?
+
+  validate :paid_entitlement_has_billing_period
+
+  validate :paid_entitlement_provider_matches_source
+
+  validate :google_play_entitlement_has_base_plan
 
   validate :ends_at_must_be_after_starts_at
 
@@ -99,11 +109,9 @@ class TeamEntitlement < ApplicationRecord
         status
       )
 
-    return false if
-      starts_at > at
+    return false if starts_at > at
 
-    return true if
-      ends_at.blank?
+    return true if ends_at.blank?
 
     ends_at > at
   end
@@ -151,8 +159,7 @@ class TeamEntitlement < ApplicationRecord
         at: at
       )
 
-    return nil if
-      ends_at.blank?
+    return nil if ends_at.blank?
 
     seconds_remaining =
       ends_at - at
@@ -170,8 +177,7 @@ class TeamEntitlement < ApplicationRecord
       ends_at.blank? ||
       starts_at.blank?
 
-    return if
-      ends_at > starts_at
+    return if ends_at > starts_at
 
     errors.add(
       :ends_at,
@@ -180,24 +186,30 @@ class TeamEntitlement < ApplicationRecord
   end
 
   def paid_entitlement_has_billing_period
-  return unless paid?
+    return unless paid?
+    return if billing_period.present?
 
-  return if
-    billing_period.present?
+    errors.add(
+      :billing_period,
+      "must be present for paid Plus"
+    )
+  end
 
-  errors.add(
-    :billing_period,
-    "must be present for paid Plus"
-  )
-end
+  def paid_entitlement_provider_matches_source
+    return unless paid?
+    return if provider.blank?
+    return if provider == source
+
+    errors.add(
+      :provider,
+      "must match the paid subscription source"
+    )
+  end
 
   def google_play_entitlement_has_base_plan
-    return unless
-      provider ==
-        "google_play"
-
-    return if
-      provider_base_plan_id.present?
+    return unless paid?
+    return unless provider == "google_play"
+    return if provider_base_plan_id.present?
 
     errors.add(
       :provider_base_plan_id,

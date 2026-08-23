@@ -396,6 +396,57 @@ class Match < ApplicationRecord
   private
 
   # ========================================
+  # SCHEDULE PLUS AVAILABILITY REMINDER
+  # ========================================
+
+  def schedule_automatic_availability_reminder_job
+    return if kickoff_time.blank?
+
+    expected_kickoff_time =
+      kickoff_time.iso8601
+
+    reminder_time =
+      kickoff_time -
+      3.days
+
+    availability_deadline =
+      kickoff_time -
+      2.days
+
+    return if
+      availability_deadline <=
+      Time.current
+
+    if reminder_time <= Time.current
+      fallback_time =
+        Time.current +
+        1.hour
+
+      return if
+        fallback_time >=
+        availability_deadline
+
+      AutomaticAvailabilityReminderJob
+        .set(
+          wait_until: fallback_time
+        )
+        .perform_later(
+          id,
+          expected_kickoff_time
+        )
+    else
+      AutomaticAvailabilityReminderJob
+        .set(
+          wait_until: reminder_time
+        )
+        .perform_later(
+          id,
+          expected_kickoff_time
+        )
+    end
+  end
+
+  # ========================================
   # SCHEDULE AVAILABILITY DEADLINE
   # ========================================
 
@@ -493,6 +544,7 @@ class Match < ApplicationRecord
 # ========================================
 
   def schedule_match_background_jobs
+    schedule_automatic_availability_reminder_job
     schedule_availability_deadline_job
     schedule_match_rating_jobs
   end

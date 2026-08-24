@@ -61,6 +61,7 @@ class StoreSubscriptionEvent < ApplicationRecord
             }
 
   validate :metadata_must_be_an_object
+  validate :raw_payload_must_be_an_object
 
   scope :pending,
         -> {
@@ -183,6 +184,15 @@ class StoreSubscriptionEvent < ApplicationRecord
 
     errors.add(
       :metadata,
+      "must be a JSON object"
+    )
+  end
+
+  def raw_payload_must_be_an_object
+    return if raw_payload.is_a?(Hash)
+
+    errors.add(
+      :raw_payload,
       "must be a JSON object"
     )
   end

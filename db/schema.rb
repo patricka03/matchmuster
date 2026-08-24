@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_035339) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_001500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -471,12 +471,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_035339) do
   end
 
   create_table "teams", force: :cascade do |t|
+    t.string "billing_account_token", null: false
     t.datetime "created_at", null: false
     t.text "description"
     t.string "invite_code"
     t.string "name"
     t.string "stripe_account_id"
     t.datetime "updated_at", null: false
+    t.index ["billing_account_token"], name: "index_teams_on_billing_account_token", unique: true
     t.index ["invite_code"], name: "index_teams_on_invite_code", unique: true
     t.index ["stripe_account_id"], name: "index_teams_on_stripe_account_id", unique: true
   end

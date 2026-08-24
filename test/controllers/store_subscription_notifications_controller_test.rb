@@ -210,6 +210,101 @@ class StoreSubscriptionNotificationsControllerTest <
     )
   end
 
+    test "Google notification enqueues verification job" do
+    assert_enqueued_jobs(
+      1,
+      only:
+        StoreSubscriptionEventVerificationJob
+    ) do
+      post google_endpoint,
+           params: @google_payload,
+           as: :json
+    end
+
+    assert_response :accepted
+
+    event =
+      StoreSubscriptionEvent.find_by!(
+        provider: "google_play",
+        provider_event_id:
+          "google-controller-message-123"
+      )
+
+    job =
+      enqueued_jobs.find do |candidate|
+        candidate[
+          :job
+        ] ==
+          StoreSubscriptionEventVerificationJob
+      end
+
+    assert_equal(
+      [
+        event.id
+      ],
+      job.fetch(
+        :args
+      )
+    )
+  end
+
+  test "Apple notification enqueues verification job" do
+    assert_enqueued_jobs(
+      1,
+      only:
+        StoreSubscriptionEventVerificationJob
+    ) do
+      post apple_endpoint,
+           params: @apple_payload,
+           as: :json
+    end
+
+    assert_response :accepted
+
+    event =
+      StoreSubscriptionEvent.find_by!(
+        provider: "apple"
+      )
+
+    job =
+      enqueued_jobs.find do |candidate|
+        candidate[
+          :job
+        ] ==
+          StoreSubscriptionEventVerificationJob
+      end
+
+    assert_equal(
+      [
+        event.id
+      ],
+      job.fetch(
+        :args
+      )
+    )
+  end
+
+  test "invalid notification does not enqueue verification job" do
+    invalid_payload = {
+      "message" => {
+        "data" =>
+          "missing-message-id"
+      }
+    }
+
+    assert_no_enqueued_jobs(
+      only:
+        StoreSubscriptionEventVerificationJob
+    ) do
+      post google_endpoint,
+           params:
+             invalid_payload,
+           as: :json
+    end
+
+    assert_response :bad_request
+  end
+
   private
 
   def google_endpoint

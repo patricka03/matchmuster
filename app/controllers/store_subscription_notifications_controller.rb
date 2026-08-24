@@ -18,11 +18,17 @@ class StoreSubscriptionNotificationsController <
   private
 
   def ingest!(provider:)
-    StoreSubscriptionEventIngestor.call(
-      provider: provider,
-      raw_payload:
-        parsed_raw_payload
-    )
+    event =
+      StoreSubscriptionEventIngestor.call(
+        provider: provider,
+        raw_payload:
+          parsed_raw_payload
+      )
+
+    StoreSubscriptionEventVerificationJob
+      .perform_later(
+        event.id
+      )
 
     render json: {
       received: true

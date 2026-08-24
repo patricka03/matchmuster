@@ -58,6 +58,20 @@ class TeamSubscriptionsControllerTest <
       )
     )
 
+    assert_equal(
+      @team.billing_account_token,
+      body.fetch(
+        "billing_account_token"
+      )
+    )
+
+    assert_match(
+      Team::BILLING_ACCOUNT_TOKEN_FORMAT,
+      body.fetch(
+        "billing_account_token"
+      )
+    )
+
     subscription =
       body.fetch(
         "subscription"

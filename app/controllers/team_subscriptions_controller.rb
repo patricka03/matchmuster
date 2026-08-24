@@ -9,6 +9,9 @@ class TeamSubscriptionsController <
     render json: {
       team_id: @team.id,
 
+      billing_account_token:
+        @team.billing_account_token,
+
       subscription:
         TeamSubscriptionResponse.call(
           team: @team

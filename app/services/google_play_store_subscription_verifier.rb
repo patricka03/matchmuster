@@ -57,10 +57,21 @@ class GooglePlayStoreSubscriptionVerifier
   rescue GooglePlayStoreNotificationDecoder::
            InvalidNotification,
          GooglePlaySubscriptionStateMapper::
-           InvalidPurchase => error
+           InvalidPurchase,
+         GooglePlayDeveloperApiClient::
+           NotFound => error
 
     raise StoreSubscriptionEventVerificationService::
             RejectedNotification,
+          error.message
+
+  rescue GooglePlayDeveloperApiClient::
+           AuthenticationError,
+         GooglePlayDeveloperApiClient::
+           RequestFailed => error
+
+    raise StoreSubscriptionEventVerificationService::
+            TemporaryFailure,
           error.message
   end
 

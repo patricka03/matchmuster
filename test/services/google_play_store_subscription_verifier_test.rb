@@ -345,6 +345,105 @@ class GooglePlayStoreSubscriptionVerifierTest <
     )
   end
 
+    test "missing Google purchase is permanently rejected" do
+    event =
+      subscription_event(
+        notification_type: 4
+      )
+
+    client =
+      api_client do |
+        _package_name,
+        _purchase_token
+      |
+        raise GooglePlayDeveloperApiClient::
+                NotFound,
+              "Google Play subscription was not found"
+      end
+
+    error =
+      assert_raises(
+        StoreSubscriptionEventVerificationService::
+          RejectedNotification
+      ) do
+        verify(
+          event,
+          client
+        )
+      end
+
+    assert_includes(
+      error.message,
+      "subscription was not found"
+    )
+  end
+
+  test "Google authentication failure is retryable" do
+    event =
+      subscription_event(
+        notification_type: 2
+      )
+
+    client =
+      api_client do |
+        _package_name,
+        _purchase_token
+      |
+        raise GooglePlayDeveloperApiClient::
+                AuthenticationError,
+              "Google authentication failed"
+      end
+
+    error =
+      assert_raises(
+        StoreSubscriptionEventVerificationService::
+          TemporaryFailure
+      ) do
+        verify(
+          event,
+          client
+        )
+      end
+
+    assert_includes(
+      error.message,
+      "Google authentication failed"
+    )
+  end
+
+  test "Google API failure is retryable" do
+    event =
+      subscription_event(
+        notification_type: 2
+      )
+
+    client =
+      api_client do |
+        _package_name,
+        _purchase_token
+      |
+        raise GooglePlayDeveloperApiClient::
+                RequestFailed,
+              "Google Play API returned HTTP 500"
+      end
+
+    error =
+      assert_raises(
+        StoreSubscriptionEventVerificationService::
+          TemporaryFailure
+      ) do
+        verify(
+          event,
+          client
+        )
+      end
+
+    assert_includes(
+      error.message,
+      "HTTP 500"
+    )
+  end
+
   private
 
   def verify(event, client)

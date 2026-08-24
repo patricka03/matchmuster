@@ -284,62 +284,11 @@ class TeamsController < ApplicationController
   end
 
   def team_subscription_response(team)
-    entitlement =
-      team.team_entitlement
-
-    unless entitlement
-      return {
-        plan: "free",
-        status: "free",
-        source: nil,
-        plus_active: false,
-        days_remaining: nil,
-        starts_at: nil,
-        ends_at: nil,
-        auto_renews: false
-      }
-    end
-
-    now =
-      Time.current
-
-    plus_active =
-      entitlement.plus_active?(
-        at: now
-      )
-
-    {
-      plan:
-        entitlement.effective_plan(
-          at: now
-        ),
-
-      status:
-        plus_active ?
-          entitlement.status :
-          "expired",
-
-      source:
-        entitlement.source,
-
-      plus_active:
-        plus_active,
-
-      days_remaining:
-        entitlement.days_remaining(
-          at: now
-        ),
-
-      starts_at:
-        entitlement.starts_at,
-
-      ends_at:
-        entitlement.ends_at,
-
-      auto_renews:
-        entitlement.auto_renews
-    }
+    TeamSubscriptionResponse.call(
+      team: team
+    )
   end
+
 
   def require_manager!
     return if current_user.account_type == "manager" &&

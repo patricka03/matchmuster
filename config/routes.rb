@@ -130,6 +130,8 @@ Rails.application.routes.draw do
   # ========================================
 
   resources :teams do
+    get "subscription",
+        to: "team_subscriptions#show"
     get "awards",
         to: "team_awards#show"
 

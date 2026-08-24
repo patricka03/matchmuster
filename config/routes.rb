@@ -105,6 +105,17 @@ Rails.application.routes.draw do
   delete "/push_devices",
          to: "push_devices#destroy"
 
+  # ========================================
+  # STORE SUBSCRIPTION NOTIFICATIONS
+  # ========================================
+
+  post "subscriptions/google_play/notifications",
+       to:
+         "store_subscription_notifications#google_play"
+
+  post "subscriptions/apple/notifications",
+       to:
+         "store_subscription_notifications#apple"
 
   # ========================================
   # STRIPE

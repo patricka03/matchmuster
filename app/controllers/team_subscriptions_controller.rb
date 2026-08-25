@@ -110,14 +110,8 @@ class TeamSubscriptionsController <
   end
 
   def plus_features_response
-    PlusAccess::FEATURES.map do |
-      feature,
-      name
-    |
-      {
-        key: feature.to_s,
-        name: name
-      }
-    end
+    PlusAccess.feature_states(
+      team: @team
+    )
   end
 end

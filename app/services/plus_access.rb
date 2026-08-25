@@ -95,6 +95,30 @@ class PlusAccess
       )
     end
 
+    def feature_states(
+      team:,
+      at: Time.current
+    )
+      FEATURES.map do |
+        feature,
+        name
+      |
+        available =
+          allowed?(
+            team: team,
+            feature: feature,
+            at: at
+          )
+
+        {
+          key: feature.to_s,
+          name: name,
+          available: available,
+          locked: !available
+        }
+      end
+    end
+
     def denial_payload(feature:)
       feature_key =
         normalize_feature(

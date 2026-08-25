@@ -1,11 +1,25 @@
 class StoreSubscriptionEventProcessor
   class ProcessingError < StandardError; end
   class UnverifiedEvent < ProcessingError; end
-  class MissingTeam < ProcessingError; end
-  class MissingSubscriptionId < ProcessingError; end
-  class SubscriptionOwnershipConflict < ProcessingError; end
-  class SubscriptionNotLinked < ProcessingError; end
   class InvalidMetadata < ProcessingError; end
+
+  MissingTeam =
+    StoreSubscriptionTeamResolver::MissingTeam
+
+  MissingSubscriptionId =
+    StoreSubscriptionTeamResolver::MissingSubscriptionId
+
+  SubscriptionOwnershipConflict =
+    StoreSubscriptionTeamResolver::OwnershipConflict
+
+  SubscriptionNotLinked =
+    StoreSubscriptionTeamResolver::SubscriptionNotLinked
+
+  InvalidAccountToken =
+    StoreSubscriptionTeamResolver::InvalidAccountToken
+
+  UnknownAccountToken =
+    StoreSubscriptionTeamResolver::UnknownAccountToken
 
   SUPPORTED_EVENT_TYPES = %w[
     subscription_activated
@@ -14,10 +28,6 @@ class StoreSubscriptionEventProcessor
     subscription_in_grace_period
     subscription_expired
     subscription_revoked
-  ].freeze
-
-  ACTIVATION_EVENT_TYPES = %w[
-    subscription_activated
   ].freeze
 
   class << self
@@ -73,7 +83,9 @@ class StoreSubscriptionEventProcessor
       event.mark_processing!
 
       team =
-        resolve_team!
+        StoreSubscriptionTeamResolver.call(
+          event: event
+        )
 
       apply_event!(
         team
@@ -92,74 +104,6 @@ class StoreSubscriptionEventProcessor
     SUPPORTED_EVENT_TYPES.include?(
       event.event_type
     )
-  end
-
-  def activation_event?
-    ACTIVATION_EVENT_TYPES.include?(
-      event.event_type
-    )
-  end
-
-  def resolve_team!
-    subscription_id =
-      required_subscription_id!
-
-    linked_entitlement =
-      TeamEntitlement.find_by(
-        provider:
-          event.provider,
-        provider_subscription_id:
-          subscription_id
-      )
-
-    if event.team &&
-       linked_entitlement &&
-       linked_entitlement.team_id !=
-         event.team_id
-
-      raise SubscriptionOwnershipConflict,
-            "Store subscription is already linked to another team"
-    end
-
-    team =
-      event.team ||
-      linked_entitlement&.team
-
-    unless team
-      raise MissingTeam,
-            "Could not resolve a MatchMuster team for this subscription"
-    end
-
-    unless activation_event?
-      ensure_subscription_matches!(
-        team
-      )
-    end
-
-    if event.team_id.nil?
-      event.update!(
-        team: team
-      )
-    end
-
-    team
-  end
-
-  def ensure_subscription_matches!(team)
-    entitlement =
-      team.team_entitlement
-
-    matches =
-      entitlement&.provider ==
-        event.provider &&
-      entitlement
-        &.provider_subscription_id ==
-        event.provider_subscription_id
-
-    return if matches
-
-    raise SubscriptionNotLinked,
-          "Store subscription is not linked to this team"
   end
 
   def apply_event!(team)
@@ -300,6 +244,7 @@ class StoreSubscriptionEventProcessor
     Time.zone.iso8601(
       value.to_s
     )
+
   rescue ArgumentError,
          TypeError
 
@@ -315,6 +260,7 @@ class StoreSubscriptionEventProcessor
     event.mark_failed!(
       error: error
     )
+
   rescue ActiveRecord::RecordNotFound
     nil
   end

@@ -39,17 +39,21 @@ class StoreSubscriptionEventProcessor
   end
 
   def initialize(event:)
-    @event = event
+    @event =
+      event
   end
 
   def call
-    return event if terminal?
+    return event if
+      terminal?
 
     process_under_lock
 
     event
+
   rescue UnverifiedEvent
     raise
+
   rescue StandardError => error
     record_processing_failure(
       error
@@ -64,7 +68,8 @@ class StoreSubscriptionEventProcessor
 
   def process_under_lock
     event.with_lock do
-      next if terminal?
+      next if
+        terminal?
 
       unless event.verified?
         raise UnverifiedEvent,
@@ -87,7 +92,32 @@ class StoreSubscriptionEventProcessor
           event: event
         )
 
+      process_ordered_event!(
+        team
+      )
+    end
+  end
+
+  def process_ordered_event!(team)
+    team.with_lock do
+      if stale_event?(
+        team
+      )
+        event.mark_ignored!(
+          reason:
+            stale_event_reason(
+              team
+            )
+        )
+
+        next
+      end
+
       apply_event!(
+        team
+      )
+
+      record_event_time!(
         team
       )
 
@@ -104,6 +134,59 @@ class StoreSubscriptionEventProcessor
     SUPPORTED_EVENT_TYPES.include?(
       event.event_type
     )
+  end
+
+  def stale_event?(team)
+    previous_event_time =
+      team
+        .team_entitlement
+        &.last_store_event_at
+
+    return false if
+      previous_event_time.blank?
+
+    event_occurred_at! <=
+      previous_event_time
+  end
+
+  def stale_event_reason(team)
+    previous_event_time =
+      team
+        .team_entitlement
+        .last_store_event_at
+
+    "Ignored stale subscription event from " \
+      "#{event_occurred_at!.iso8601}; " \
+      "latest applied event occurred at " \
+      "#{previous_event_time.iso8601}"
+  end
+
+  def record_event_time!(team)
+    entitlement =
+      team
+        .reload
+        .team_entitlement
+
+    unless entitlement
+      raise ProcessingError,
+            "Processed subscription event did not produce an entitlement"
+    end
+
+    entitlement.update!(
+      last_store_event_at:
+        event_occurred_at!
+    )
+  end
+
+  def event_occurred_at!
+    value =
+      event.occurred_at
+
+    return value.in_time_zone if
+      value.present?
+
+    raise InvalidMetadata,
+          "Verified store event occurred_at is missing"
   end
 
   def apply_event!(team)
@@ -255,7 +338,8 @@ class StoreSubscriptionEventProcessor
   def record_processing_failure(error)
     event.reload
 
-    return if terminal?
+    return if
+      terminal?
 
     event.mark_failed!(
       error: error

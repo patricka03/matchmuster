@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_001500) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -443,6 +443,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_001500) do
     t.string "billing_period"
     t.datetime "created_at", null: false
     t.datetime "ends_at"
+    t.datetime "last_store_event_at"
     t.string "plan", null: false
     t.string "provider"
     t.string "provider_base_plan_id"

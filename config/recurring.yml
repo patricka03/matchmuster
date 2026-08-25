@@ -9,3 +9,8 @@ production:
     class: ExpireTeamEntitlementsJob
     queue: default
     schedule: every 15 minutes
+
+  schedule_team_subscription_reconciliation:
+    class: ScheduleTeamSubscriptionReconciliationJob
+    queue: default
+    schedule: "35 */6 * * *"

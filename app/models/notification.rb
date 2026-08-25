@@ -5,8 +5,13 @@ class Notification < ApplicationRecord
     availability_reminder
   ].freeze
 
+  TRAINING_AVAILABILITY_ACTION_TYPES = %w[
+    training_availability_reminder
+  ].freeze
+
   ACTIONABLE_TYPES = (
-    AVAILABILITY_ACTION_TYPES + %w[
+    AVAILABILITY_ACTION_TYPES +
+    TRAINING_AVAILABILITY_ACTION_TYPES + %w[
       match_payment_requested
       match_payment_amount_changed
       match_payment_reminder
@@ -64,6 +69,7 @@ class Notification < ApplicationRecord
     app_update
 
     training_availability_updated
+    training_availability_reminder
   ].freeze
 
   belongs_to :user
@@ -82,6 +88,9 @@ class Notification < ApplicationRecord
              optional: true
 
   belongs_to :match,
+             optional: true
+
+  belongs_to :training,
              optional: true
 
   belongs_to :post,
@@ -109,10 +118,6 @@ class Notification < ApplicationRecord
   scope :kept,
         -> { where.not(kept_at: nil) }
 
-  # ========================================
-  # IDEMPOTENT NOTIFICATIONS
-  # ========================================
-
   def self.create_once!(
     user:,
     deduplication_key:,
@@ -126,10 +131,6 @@ class Notification < ApplicationRecord
     end
   end
 
-  # ========================================
-  # APP UPDATE BROADCAST
-  # ========================================
-
   def self.broadcast_app_update!(
     title:,
     message:
@@ -138,7 +139,8 @@ class Notification < ApplicationRecord
       User
         .where(
           account_type: "manager",
-          manager_verification_status: "approved"
+          manager_verification_status:
+            "approved"
         )
         .pluck(:id)
 
@@ -148,7 +150,8 @@ class Notification < ApplicationRecord
           user_id: manager_id,
           title: title,
           message: message,
-          notification_type: "app_update"
+          notification_type:
+            "app_update"
         )
       end
     end

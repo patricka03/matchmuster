@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_203000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -209,6 +209,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_130000) do
     t.boolean "read", default: false, null: false
     t.bigint "team_id"
     t.string "title"
+    t.bigint "training_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
@@ -217,6 +218,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_130000) do
     t.index ["match_payment_id"], name: "index_notifications_on_match_payment_id"
     t.index ["post_id"], name: "index_notifications_on_post_id"
     t.index ["team_id"], name: "index_notifications_on_team_id"
+    t.index ["training_id"], name: "index_notifications_on_training_id"
     t.index ["user_id", "deduplication_key"], name: "index_notifications_on_user_and_deduplication_key", unique: true, where: "(deduplication_key IS NOT NULL)"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
@@ -570,6 +572,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_130000) do
   add_foreign_key "notifications", "matches"
   add_foreign_key "notifications", "posts"
   add_foreign_key "notifications", "teams"
+  add_foreign_key "notifications", "trainings"
   add_foreign_key "notifications", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "notifications", "users", column: "featured_user_id"

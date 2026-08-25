@@ -5,6 +5,7 @@ class PostReadsController < ApplicationController
   before_action :authorize_team_member!, only: %i[create]
   before_action :authorize_manager!, only: %i[index]
   before_action :ensure_post_tracks_reads!
+  before_action :require_tactical_read_receipts_plus!, only: %i[ index ]
 
   def index
     @post_reads = @post.post_reads
@@ -88,5 +89,13 @@ class PostReadsController < ApplicationController
     render json: {
       error: "Read tracking is only available for announcements and tactical posts"
     }, status: :unprocessable_entity
+  end
+
+  def require_tactical_read_receipts_plus!
+    require_plus!(
+      team: @team,
+      feature:
+        :tactical_read_receipts
+    )
   end
 end

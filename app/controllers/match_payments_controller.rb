@@ -5,6 +5,7 @@ class MatchPaymentsController < ApplicationController
   before_action :authorize_team_member!
   before_action :set_match_payment, only: %i[show update destroy checkout]
   before_action :authorize_manager!, only: %i[create bulk_create update destroy summary]
+  before_action :require_payment_analytics_plus!, only: %i[ summary ]
   before_action :authorize_payment_view!, only: %i[show]
   before_action :authorize_checkout!, only: %i[checkout]
 
@@ -382,6 +383,14 @@ class MatchPaymentsController < ApplicationController
     params.require(:match_payment).permit(
       :user_id,
       :amount_pence
+    )
+  end
+
+  def require_payment_analytics_plus!
+    require_plus!(
+      team: @team,
+      feature:
+        :payment_analytics
     )
   end
 

@@ -25,6 +25,9 @@ class AvailabilitiesController < ApplicationController
                   remind
                 ]
 
+  before_action :require_availability_reminders_plus!,
+                only: :remind
+
   def index
     approved_memberships =
       @team.team_memberships
@@ -288,6 +291,14 @@ class AvailabilitiesController < ApplicationController
       error:
         "Only an approved manager of this team can perform this action"
     }, status: :forbidden
+  end
+
+  def require_availability_reminders_plus!
+    require_plus!(
+      team: @team,
+      feature:
+        :automatic_availability_reminders
+    )
   end
 
   def clear_completed_availability_notifications

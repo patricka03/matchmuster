@@ -188,6 +188,12 @@ Rails.application.routes.draw do
                   update
                   destroy
                 ] do
+        collection do
+          post :recurring,
+               action:
+                 :create_recurring
+        end
+
         resources :training_availabilities,
                   only: %i[
                     index

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_203000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_211500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -504,10 +504,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_203000) do
     t.string "location", null: false
     t.decimal "longitude", precision: 10, scale: 6
     t.datetime "meet_time", null: false
+    t.string "recurrence_frequency"
+    t.string "recurrence_group_id"
+    t.integer "recurrence_sequence"
     t.datetime "starts_at", null: false
     t.bigint "team_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["team_id", "recurrence_group_id", "recurrence_sequence"], name: "index_trainings_on_team_recurrence_sequence", unique: true, where: "(recurrence_group_id IS NOT NULL)"
     t.index ["team_id", "starts_at"], name: "index_trainings_on_team_id_and_starts_at"
     t.index ["team_id"], name: "index_trainings_on_team_id"
   end

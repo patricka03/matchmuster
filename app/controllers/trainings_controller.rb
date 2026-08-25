@@ -5,6 +5,7 @@ class TrainingsController < ApplicationController
                 only: %i[
                   index
                   create
+                  create_recurring
                 ]
 
   before_action :set_training,
@@ -23,6 +24,7 @@ class TrainingsController < ApplicationController
   before_action :authorise_approved_manager,
                 only: %i[
                   create
+                  create_recurring
                   update
                   destroy
                 ]
@@ -51,7 +53,7 @@ class TrainingsController < ApplicationController
   end
 
   # ========================================
-  # CREATE
+  # CREATE ONE-OFF TRAINING — FREE
   # ========================================
 
   def create
@@ -73,6 +75,56 @@ class TrainingsController < ApplicationController
             .full_messages
       }, status: :unprocessable_entity
     end
+  end
+
+  # ========================================
+  # CREATE RECURRING TRAINING — PLUS
+  # ========================================
+
+  def create_recurring
+    return unless require_plus!(
+      team: @team,
+      feature:
+        :recurring_training
+    )
+
+    trainings =
+      RecurringTrainingService.call(
+        team: @team,
+        attributes:
+          training_params,
+        frequency:
+          recurrence_params[
+            :frequency
+          ],
+        occurrences:
+          recurrence_params[
+            :occurrences
+          ]
+      )
+
+    render json: {
+      recurrence_group_id:
+        trainings
+          .first
+          .recurrence_group_id,
+      frequency:
+        trainings
+          .first
+          .recurrence_frequency,
+      occurrences:
+        trainings.length,
+      trainings: trainings
+    }, status: :created
+
+  rescue RecurringTrainingService::InvalidSchedule => error
+    render json: {
+      errors: [
+        error.message
+      ],
+      code:
+        "invalid_recurring_training"
+    }, status: :unprocessable_entity
   end
 
   # ========================================
@@ -213,6 +265,7 @@ class TrainingsController < ApplicationController
   # ========================================
   # STRONG PARAMS
   # ========================================
+
   def training_params
     params
       .require(:training)
@@ -224,6 +277,15 @@ class TrainingsController < ApplicationController
         :description,
         :latitude,
         :longitude
+      )
+  end
+
+  def recurrence_params
+    params
+      .require(:recurrence)
+      .permit(
+        :frequency,
+        :occurrences
       )
   end
 end

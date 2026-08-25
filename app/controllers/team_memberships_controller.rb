@@ -97,7 +97,10 @@ class TeamMembershipsController < ApplicationController
 
       render json: {
         message: "Your request to join the team has been sent",
-        team: @team,
+        team:
+          public_team_response(
+            @team
+          ),
         team_membership: @team_membership
       }, status: :created
     rescue ActiveRecord::RecordInvalid => error
@@ -221,6 +224,18 @@ class TeamMembershipsController < ApplicationController
         role: "manager",
         status: "approved"
       )
+  end
+
+  def public_team_response(team)
+    {
+      id: team.id,
+      name: team.name,
+      description: team.description,
+      badge_url:
+        team.badge.attached? ?
+          url_for(team.badge) :
+          nil
+    }
   end
 
   def save_membership_and_notify_managers!

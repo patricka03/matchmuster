@@ -10,6 +10,11 @@ production:
     queue: default
     schedule: every 15 minutes
 
+  schedule_automatic_payment_reminders:
+    class: ScheduleAutomaticPaymentRemindersJob
+    queue: default
+    schedule: every hour at minute 25
+
   schedule_team_subscription_reconciliation:
     class: ScheduleTeamSubscriptionReconciliationJob
     queue: default

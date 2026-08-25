@@ -48,10 +48,16 @@ class GooglePlayStoreSubscriptionVerifier
           )
       )
 
-    GooglePlaySubscriptionStateMapper.call(
-      decoded_notification:
-        decoded,
-      purchase: purchase
+    result =
+      GooglePlaySubscriptionStateMapper.call(
+        decoded_notification:
+          decoded,
+        purchase: purchase
+      )
+
+    attach_account_token(
+      result: result,
+      payload: purchase
     )
 
   rescue GooglePlayStoreNotificationDecoder::
@@ -59,7 +65,11 @@ class GooglePlayStoreSubscriptionVerifier
          GooglePlaySubscriptionStateMapper::
            InvalidPurchase,
          GooglePlayDeveloperApiClient::
-           NotFound => error
+           NotFound,
+         StoreSubscriptionAccountToken::
+           InvalidPayload,
+         StoreSubscriptionAccountToken::
+           InvalidToken => error
 
     raise StoreSubscriptionEventVerificationService::
             RejectedNotification,
@@ -149,5 +159,30 @@ class GooglePlayStoreSubscriptionVerifier
           kind
       }
     }
+  end
+
+  def attach_account_token(
+    result:,
+    payload:
+  )
+    token =
+      StoreSubscriptionAccountToken.call(
+        provider: "google_play",
+        payload: payload
+      )
+
+    return result unless token
+
+    result.merge(
+      metadata:
+        result
+          .fetch(
+            :metadata
+          )
+          .merge(
+            "billing_account_token" =>
+              token
+          )
+    )
   end
 end

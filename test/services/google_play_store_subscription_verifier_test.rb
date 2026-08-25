@@ -21,6 +21,9 @@ class GooglePlayStoreSubscriptionVerifierTest <
 
     @event_time =
       @starts_at + 1.hour
+
+    @billing_account_token =
+      SecureRandom.uuid
   end
 
   test "verified active purchase returns normalized result" do
@@ -77,6 +80,17 @@ class GooglePlayStoreSubscriptionVerifierTest <
         )
         .fetch(
           "billing_period"
+        )
+    )
+
+    assert_equal(
+      @billing_account_token,
+      result
+        .fetch(
+          :metadata
+        )
+        .fetch(
+          "billing_account_token"
         )
     )
 
@@ -148,7 +162,8 @@ class GooglePlayStoreSubscriptionVerifierTest <
             "notificationType" => 1,
             "purchaseToken" =>
               "one-time-token",
-            "sku" => "football-pack"
+            "sku" =>
+              "football-pack"
           }
         }
       )
@@ -345,7 +360,7 @@ class GooglePlayStoreSubscriptionVerifierTest <
     )
   end
 
-    test "missing Google purchase is permanently rejected" do
+  test "missing Google purchase is permanently rejected" do
     event =
       subscription_event(
         notification_type: 4
@@ -558,6 +573,11 @@ class GooglePlayStoreSubscriptionVerifierTest <
 
       "acknowledgementState" =>
         "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+
+      "externalAccountIdentifiers" => {
+        "obfuscatedExternalAccountId" =>
+          @billing_account_token
+      },
 
       "lineItems" => [
         {

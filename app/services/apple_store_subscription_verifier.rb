@@ -22,9 +22,18 @@ class AppleStoreSubscriptionVerifier
           signed_data_verifier!
       )
 
-    AppleSubscriptionStateMapper.call(
-      decoded_notification:
-        decoded_notification
+    result =
+      AppleSubscriptionStateMapper.call(
+        decoded_notification:
+          decoded_notification
+      )
+
+    attach_account_token(
+      result: result,
+      payload:
+        decoded_notification[
+          :transaction
+        ]
     )
 
   rescue AppleStoreNotificationDecoder::
@@ -44,7 +53,11 @@ class AppleStoreSubscriptionVerifier
          AppleCertificateChainVerifier::
            InvalidCertificatePurpose,
          AppleCertificateChainVerifier::
-           UntrustedCertificateChain => error
+           UntrustedCertificateChain,
+         StoreSubscriptionAccountToken::
+           InvalidPayload,
+         StoreSubscriptionAccountToken::
+           InvalidToken => error
 
     raise StoreSubscriptionEventVerificationService::
             RejectedNotification,
@@ -89,5 +102,35 @@ class AppleStoreSubscriptionVerifier
     raise StoreSubscriptionEventVerificationService::
             TemporaryFailure,
           "Apple signed-data verifier is not configured"
+  end
+
+  def attach_account_token(
+    result:,
+    payload:
+  )
+    return result unless
+      payload.is_a?(
+        Hash
+      )
+
+    token =
+      StoreSubscriptionAccountToken.call(
+        provider: "apple",
+        payload: payload
+      )
+
+    return result unless token
+
+    result.merge(
+      metadata:
+        result
+          .fetch(
+            :metadata
+          )
+          .merge(
+            "billing_account_token" =>
+              token
+          )
+    )
   end
 end

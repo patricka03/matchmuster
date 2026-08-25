@@ -1,7 +1,8 @@
 require "test_helper"
 
 class AppleStoreSubscriptionVerifierTest <
-    ActiveSupport::TestCase
+  ActiveSupport::TestCase
+
   class FakeSignedDataVerifier
     def initialize(
       notification:,
@@ -54,6 +55,9 @@ class AppleStoreSubscriptionVerifierTest <
 
     @ends_at =
       @starts_at + 1.month
+
+    @billing_account_token =
+      SecureRandom.uuid
   end
 
   test "normalizes verified Apple activation" do
@@ -107,6 +111,13 @@ class AppleStoreSubscriptionVerifierTest <
       true,
       metadata.fetch(
         "auto_renews"
+      )
+    )
+
+    assert_equal(
+      @billing_account_token,
+      metadata.fetch(
+        "billing_account_token"
       )
     )
   end
@@ -380,6 +391,9 @@ class AppleStoreSubscriptionVerifierTest <
 
       "originalTransactionId" =>
         "apple-original-transaction",
+
+      "appAccountToken" =>
+        @billing_account_token,
 
       "productId" =>
         "matchmuster_plus_monthly",

@@ -1,33 +1,28 @@
-class StoreSubscriptionEventVerificationJob <
-  ApplicationJob
-
+class StoreSubscriptionEventVerificationJob < ApplicationJob
   queue_as :default
 
   discard_on ActiveRecord::RecordNotFound
 
-  retry_on StoreSubscriptionEventVerificationService::
-             TemporaryFailure,
+  retry_on StoreSubscriptionEventVerificationService::TemporaryFailure,
            wait: :polynomially_longer,
-           attempts: 5
+           attempts: 5 do |job, error|
+    StoreSubscriptionFailureReporter.call(
+      job_name: job.class.name,
+      record_type: "StoreSubscriptionEvent",
+      record_id: job.arguments.first,
+      error: error
+    )
+  end
 
   def perform(
     event_id,
-    verifier:
-      StoreSubscriptionEventVerifier
+    verifier: StoreSubscriptionEventVerifier
   )
-    event =
-      StoreSubscriptionEvent.find(
-        event_id
-      )
+    event = StoreSubscriptionEvent.find(event_id)
 
-    return event if
-      terminal?(
-        event
-      )
+    return event if terminal?(event)
 
-    verifier.call(
-      event: event
-    )
+    verifier.call(event: event)
   end
 
   private

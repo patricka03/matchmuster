@@ -7,6 +7,8 @@ class TeamSubscriptionClaimsController <
 
   rescue_from(
     ActionController::ParameterMissing,
+    TeamSubscriptionRestoreService::
+      RestoreError,
     with: :render_bad_request
   )
 
@@ -85,6 +87,26 @@ class TeamSubscriptionClaimsController <
         params.require(
           :signed_transaction
         )
+    )
+
+    render_subscription
+  end
+
+  def restore
+    TeamSubscriptionRestoreService.call(
+      team: @team,
+      provider:
+        params.require(
+          :provider
+        ),
+      purchase_token:
+        params[
+          :purchase_token
+        ],
+      signed_transaction:
+        params[
+          :signed_transaction
+        ]
     )
 
     render_subscription

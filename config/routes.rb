@@ -139,10 +139,15 @@ Rails.application.routes.draw do
             "team_subscription_claims#google_play"
 
       post "subscription/apple/claim",
+         to:
+           "team_subscription_claims#apple"
+
+      post "subscription/restore",
           to:
-            "team_subscription_claims#apple"
+            "team_subscription_claims#restore"
 
       get "awards",
+
           to:
             "team_awards#show"
 

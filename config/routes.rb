@@ -129,131 +129,33 @@ Rails.application.routes.draw do
   # TEAMS
   # ========================================
 
-  resources :teams do
-    get "subscription",
-        to: "team_subscriptions#show"
-    get "awards",
-        to: "team_awards#show"
+    resources :teams do
+      get "subscription",
+          to:
+            "team_subscriptions#show"
 
-    member do
-      post :stripe_connect
-      get :stripe_status
-      post :stripe_dashboard
+      post "subscription/google_play/claim",
+          to:
+            "team_subscription_claims#google_play"
 
-      patch :badge,
-            action: :update_badge
-    end
+      post "subscription/apple/claim",
+          to:
+            "team_subscription_claims#apple"
 
-    resources :posts,
-              only: %i[
-                index
-                show
-                create
-                update
-                destroy
-              ] do
-      resources :post_reads,
-                only: %i[
-                  index
-                  create
-                ]
-    end
+      get "awards",
+          to:
+            "team_awards#show"
 
+      member do
+        post :stripe_connect
+        get :stripe_status
+        post :stripe_dashboard
 
-    # ========================================
-    # TRAINING
-    # ========================================
-
-    resources :trainings,
-              only: %i[
-                index
-                show
-                create
-                update
-                destroy
-              ] do
-      resources :training_availabilities,
-                only: %i[
-                  index
-                  create
-                  update
-                ] do
-        collection do
-          get :mine
-        end
-      end
-    end
-
-
-    # ========================================
-    # MATCHES
-    # ========================================
-
-    resources :matches,
-              only: %i[
-                index
-                show
-                create
-                update
-                destroy
-              ] do
-      resources :match_player_stats,
-                only: %i[
-                  index
-                  create
-                ]
-
-
-      # ----------------------------------------
-      # AVAILABILITIES
-      # ----------------------------------------
-
-      resources :availabilities,
-                only: %i[
-                  index
-                  create
-                ] do
-        collection do
-          get :mine
-          post :remind
-        end
+        patch :badge,
+              action: :update_badge
       end
 
-
-      # ----------------------------------------
-      # MATCH RATINGS
-      # ----------------------------------------
-
-      resources :match_ratings,
-                only: %i[
-                  create
-                ]
-
-      get "rating_status",
-          to: "match_ratings#status"
-
-      get "rating_results",
-          to: "match_ratings#results"
-
-
-      # ----------------------------------------
-      # SQUAD SELECTIONS
-      # ----------------------------------------
-
-      resources :squad_selections,
-                only: %i[
-                  index
-                  create
-                  update
-                  destroy
-                ]
-
-
-      # ----------------------------------------
-      # MATCH PAYMENTS
-      # ----------------------------------------
-
-      resources :match_payments,
+      resources :posts,
                 only: %i[
                   index
                   show
@@ -261,28 +163,137 @@ Rails.application.routes.draw do
                   update
                   destroy
                 ] do
-        collection do
-          get :summary
-          post :bulk_create
-        end
+        resources :post_reads,
+                  only: %i[
+                    index
+                    create
+                  ]
+      end
 
-        member do
-          post :checkout
+
+      # ========================================
+      # TRAINING
+      # ========================================
+
+      resources :trainings,
+                only: %i[
+                  index
+                  show
+                  create
+                  update
+                  destroy
+                ] do
+        resources :training_availabilities,
+                  only: %i[
+                    index
+                    create
+                    update
+                  ] do
+          collection do
+            get :mine
+          end
         end
       end
+
+
+      # ========================================
+      # MATCHES
+      # ========================================
+
+      resources :matches,
+                only: %i[
+                  index
+                  show
+                  create
+                  update
+                  destroy
+                ] do
+        resources :match_player_stats,
+                  only: %i[
+                    index
+                    create
+                  ]
+
+
+        # ----------------------------------------
+        # AVAILABILITIES
+        # ----------------------------------------
+
+        resources :availabilities,
+                  only: %i[
+                    index
+                    create
+                  ] do
+          collection do
+            get :mine
+            post :remind
+          end
+        end
+
+
+        # ----------------------------------------
+        # MATCH RATINGS
+        # ----------------------------------------
+
+        resources :match_ratings,
+                  only: %i[
+                    create
+                  ]
+
+        get "rating_status",
+            to: "match_ratings#status"
+
+        get "rating_results",
+            to: "match_ratings#results"
+
+
+        # ----------------------------------------
+        # SQUAD SELECTIONS
+        # ----------------------------------------
+
+        resources :squad_selections,
+                  only: %i[
+                    index
+                    create
+                    update
+                    destroy
+                  ]
+
+
+        # ----------------------------------------
+        # MATCH PAYMENTS
+        # ----------------------------------------
+
+        resources :match_payments,
+                  only: %i[
+                    index
+                    show
+                    create
+                    update
+                    destroy
+                  ] do
+          collection do
+            get :summary
+            post :bulk_create
+          end
+
+          member do
+            post :checkout
+          end
+        end
+      end
+
+
+      # ========================================
+      # TEAM MEMBERSHIPS
+      # ========================================
+
+      resources :team_memberships,
+                only: %i[
+                  index
+                  create
+                ]
     end
-
-
-    # ========================================
-    # TEAM MEMBERSHIPS
-    # ========================================
-
-    resources :team_memberships,
-              only: %i[
-                index
-                create
-              ]
-  end
 
 
   # ========================================

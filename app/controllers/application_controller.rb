@@ -3,6 +3,7 @@ class ApplicationController < ActionController::API
 
   before_action :configure_permitted_parameters, if: :devise_controller?
   before_action :enforce_user_account_access!
+  before_action :enforce_multi_team_owner_access!
 
   protected
 
@@ -27,6 +28,63 @@ class ApplicationController < ActionController::API
       error: error,
       code: code
     }, status: :unauthorized
+  end
+
+  def enforce_multi_team_owner_access!
+    return unless
+      current_user&.manager? &&
+      current_user.manager_verification_status == "approved"
+
+    team =
+      requested_multi_team_access_team
+
+    return unless team
+
+    access =
+      MultiTeamOwnerAccess.new(
+        manager: current_user
+      )
+
+    return if access.accessible?(
+      team: team
+    )
+
+    render json:
+      access.denial_payload(
+        team: team
+      ),
+      status: :forbidden
+  end
+
+  def requested_multi_team_access_team
+    team_id = params[:team_id]
+
+    if team_id.present?
+      return Team.find_by(
+        id: team_id
+      )
+    end
+
+    if controller_name == "teams" &&
+      params[:id].present?
+
+      return Team.find_by(
+        id: params[:id]
+      )
+    end
+
+    if controller_name == "team_memberships" &&
+      params[:id].present?
+
+      return TeamMembership
+        .includes(:team)
+        .find_by(
+          id: params[:id]
+        )
+        &.team
+    end
+
+    nil
   end
 
   def require_plus!(

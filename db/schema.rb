@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_211500) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -479,10 +479,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_211500) do
     t.text "description"
     t.string "invite_code"
     t.string "name"
+    t.bigint "owner_user_id"
     t.string "stripe_account_id"
     t.datetime "updated_at", null: false
     t.index ["billing_account_token"], name: "index_teams_on_billing_account_token", unique: true
     t.index ["invite_code"], name: "index_teams_on_invite_code", unique: true
+    t.index ["owner_user_id"], name: "index_teams_on_owner_user_id"
     t.index ["stripe_account_id"], name: "index_teams_on_stripe_account_id", unique: true
   end
 
@@ -600,6 +602,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_211500) do
   add_foreign_key "team_entitlements", "teams"
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
+  add_foreign_key "teams", "users", column: "owner_user_id"
   add_foreign_key "training_availabilities", "trainings"
   add_foreign_key "training_availabilities", "users"
   add_foreign_key "trainings", "teams"

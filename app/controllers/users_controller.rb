@@ -61,6 +61,24 @@ class UsersController < ApplicationController
       }, status: :unprocessable_entity
     end
 
+    owned_teams =
+      MultiTeamOwnerAccess
+        .new(
+          manager: current_user
+        )
+        .owned_teams
+
+    if owned_teams.any?
+      return render json: {
+        error: "You still own one or more teams.",
+        code: "owned_teams_must_be_resolved",
+        message:
+          "Delete your owned teams or contact MatchMuster support about an ownership transfer before deleting your account.",
+        teams:
+          owned_teams.map(&:name)
+      }, status: :conflict
+    end
+
     blocking_teams = sole_manager_teams
 
     if blocking_teams.any?

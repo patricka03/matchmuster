@@ -2,6 +2,7 @@ class TeamMembershipsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team, only: %i[index create]
   before_action :set_team_membership, only: %i[approve reject destroy]
+  before_action :protect_team_owner_membership!, only: %i[reject destroy]
 
   before_action :authorize_team_member!, only: %i[index]
   before_action :authorize_team_manager!, only: %i[approve reject]
@@ -185,6 +186,23 @@ class TeamMembershipsController < ApplicationController
     render json: {
       error: "You are not authorised to view this team's squad"
     }, status: :forbidden
+  end
+
+  def protect_team_owner_membership!
+    owner_membership =
+      @team_membership.role == "manager" &&
+      @team.owned_by?(
+        @team_membership.user
+      )
+
+    return unless owner_membership
+
+    render json: {
+      error:
+        "The team owner's manager membership cannot be removed.",
+      code:
+        "team_owner_membership_required"
+    }, status: :conflict
   end
 
   def authorize_team_manager!

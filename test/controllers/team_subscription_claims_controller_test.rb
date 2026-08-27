@@ -478,6 +478,125 @@ class TeamSubscriptionClaimsControllerTest <
     assert_response :forbidden
   end
 
+  test "approved co-manager cannot claim the owner's subscription" do
+    co_manager =
+      create_user(
+        account_type: "manager"
+      )
+
+    TeamMembership.create!(
+      user: co_manager,
+      team: @team,
+      role: "manager",
+      status: "approved",
+      preferred_position: "CM"
+    )
+
+    token =
+      authentication_token_for(
+        co_manager
+      )
+
+    post apple_endpoint,
+         params: {
+           signed_transaction:
+             "co-manager-transaction"
+         },
+         headers: {
+           "Authorization" => token
+         },
+         as: :json
+
+    assert_response :forbidden
+
+    assert_equal(
+      "subscription_manager_required",
+      JSON
+        .parse(
+          response.body
+        )
+        .fetch(
+          "code"
+        )
+    )
+  end
+
+  test "owner cannot claim Plus through a secondary team" do
+    primary_team =
+      @team
+
+    primary_team.update!(
+      owner_user: @manager
+    )
+
+    TeamEntitlementService.activate_paid_plus!(
+      team: primary_team,
+      provider: "google_play",
+      provider_subscription_id:
+        "primary-claim-subscription",
+      billing_period: "monthly",
+      provider_product_id:
+        "matchmuster_plus",
+      provider_base_plan_id:
+        "monthly",
+      starts_at: Time.current,
+      ends_at: Time.current + 30.days,
+      auto_renews: true
+    )
+
+    @team =
+      Team.create!(
+        name: "Secondary Claim FC",
+        owner_user: @manager
+      )
+
+    TeamMembership.create!(
+      user: @manager,
+      team: @team,
+      role: "manager",
+      status: "approved",
+      preferred_position: "CM"
+    )
+
+    post google_play_endpoint,
+         params: {
+           purchase_token:
+             "secondary-team-token"
+         },
+         headers: {
+           "Authorization" =>
+             authentication_token_for(
+               @manager
+             )
+         },
+         as: :json
+
+    assert_response :forbidden
+
+    body =
+      JSON.parse(
+        response.body
+      )
+
+    assert_equal(
+      "subscription_primary_team_required",
+      body.fetch(
+        "code"
+      )
+    )
+
+    assert_equal(
+      primary_team.id,
+      body
+        .fetch(
+          "subscription_team"
+        )
+        .fetch(
+          "id"
+        )
+    )
+  end
+
   test "missing team returns not found" do
     token =
       authentication_token_for(

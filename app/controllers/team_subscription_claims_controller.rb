@@ -3,7 +3,8 @@ class TeamSubscriptionClaimsController <
 
   before_action :authenticate_user!
   before_action :set_team
-  before_action :require_team_manager!
+  before_action :require_team_owner!
+  before_action :require_primary_subscription_team!
 
   rescue_from(
     ActionController::ParameterMissing,
@@ -131,33 +132,50 @@ class TeamSubscriptionClaimsController <
     }, status: :not_found
   end
 
-  def approved_membership
-    @team.team_memberships.find_by(
-      user: current_user,
-      status: "approved"
-    )
-  end
-
-  def require_team_manager!
-    membership =
-      approved_membership
-
+  def require_team_owner!
     allowed =
       current_user.account_type ==
         "manager" &&
       current_user
         .manager_verification_status ==
         "approved" &&
-      membership&.role ==
-        "manager"
+      @team.owned_by?(
+        current_user
+      )
 
     return if allowed
 
     render json: {
       error:
-        "Only approved team managers can manage this subscription.",
+        "Only the team owner can manage this subscription.",
       code:
         "subscription_manager_required"
+    }, status: :forbidden
+  end
+
+  def require_primary_subscription_team!
+    access =
+      MultiTeamOwnerAccess.new(
+        manager: current_user
+      )
+
+    return if access.primary_team?(
+      @team
+    )
+
+    primary_team =
+      access.primary_owned_team
+
+    render json: {
+      error:
+        "MatchMuster Plus is managed through your primary team.",
+      code:
+        "subscription_primary_team_required",
+      subscription_team:
+        primary_team && {
+          id: primary_team.id,
+          name: primary_team.name
+        }
     }, status: :forbidden
   end
 

@@ -4,9 +4,11 @@ class TeamsController < ApplicationController
   before_action :set_team, only: %i[ show update destroy stripe_connect stripe_status stripe_dashboard update_badge ]
 
   before_action :require_manager!, only: :create
+  before_action :require_multi_team_creation_access!, only: :create
   before_action :require_team_member!, only: :show
 
-  before_action :require_team_manager!, only: %i[ update destroy stripe_connect stripe_status stripe_dashboard update_badge ]
+  before_action :require_team_manager!, only: %i[ update stripe_connect stripe_status stripe_dashboard update_badge ]
+  before_action :require_team_owner!, only: :destroy
 
   def index
     teams = Team.joins(:team_memberships).where(
@@ -24,9 +26,18 @@ class TeamsController < ApplicationController
       )
     end
 
-    teams = teams.distinct
+    teams = teams.distinct.to_a
 
-    render json: teams.map { |team| team_response(team) },
+    access =
+      multi_team_owner_access
+
+    teams.sort_by! do |team|
+      access ?
+        access.sort_key(team) :
+        [0, team.created_at, team.id]
+    end
+
+    render json: teams.map { |team| team_response(team, access: access) },
           status: :ok
   end
 
@@ -37,7 +48,9 @@ class TeamsController < ApplicationController
   def create
     @team =
       Team.new(
-        team_params
+        team_params.merge(
+          owner_user: current_user
+        )
       )
 
     ActiveRecord::Base.transaction do
@@ -55,6 +68,8 @@ class TeamsController < ApplicationController
         team: @team
       )
     end
+
+    @multi_team_owner_access = nil
 
     render json:
       team_response(@team),
@@ -250,7 +265,10 @@ class TeamsController < ApplicationController
     )
   end
 
-  def team_response(team)
+  def team_response(
+    team,
+    access: multi_team_owner_access
+  )
     membership =
       approved_membership(team)
 
@@ -265,14 +283,22 @@ class TeamsController < ApplicationController
       membership_id:
         membership&.id,
       membership_role:
-        membership&.role
+        membership&.role,
+      multi_team_access:
+        access&.team_state(
+          team: team
+        )
     }
 
     if current_user.account_type == "manager" &&
       membership&.role == "manager"
 
-      response[:invite_code] =
-        team.invite_code
+      unless access&.locked?(
+        team: team
+      )
+        response[:invite_code] =
+          team.invite_code
+      end
 
       response[:subscription] =
         team_subscription_response(
@@ -287,6 +313,31 @@ class TeamsController < ApplicationController
     TeamSubscriptionResponse.call(
       team: team
     )
+  end
+
+  def multi_team_owner_access
+    return nil unless
+      current_user&.manager? &&
+      current_user.manager_verification_status == "approved"
+
+    @multi_team_owner_access ||=
+      MultiTeamOwnerAccess.new(
+        manager: current_user
+      )
+  end
+
+  def require_multi_team_creation_access!
+    access =
+      multi_team_owner_access
+
+    return unless access
+    return if access.can_create_team?
+
+    render json:
+      access.denial_payload(
+        action: "create_team"
+      ),
+      status: :forbidden
   end
 
 
@@ -316,6 +367,18 @@ class TeamsController < ApplicationController
 
     render json: {
       error: "Only approved team managers can manage this team."
+    }, status: :forbidden
+  end
+
+  def require_team_owner!
+    return if
+      current_user.account_type == "manager" &&
+      current_user.manager_verification_status == "approved" &&
+      @team.owned_by?(current_user)
+
+    render json: {
+      error: "Only the team owner can delete this team.",
+      code: "team_owner_required"
     }, status: :forbidden
   end
 end

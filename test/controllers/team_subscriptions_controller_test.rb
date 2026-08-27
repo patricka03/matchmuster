@@ -31,7 +31,7 @@ class TeamSubscriptionsControllerTest <
       )
   end
 
-  test "approved team manager can view subscription details" do
+  test "approved team owner can view subscription details" do
     token =
       authentication_token_for(
         @manager
@@ -284,7 +284,118 @@ class TeamSubscriptionsControllerTest <
       body.fetch(
         "error"
       ),
-      "Only approved team managers"
+      "Only the team owner"
+    )
+  end
+
+  test "approved co-manager cannot manage the owner's subscription" do
+    co_manager =
+      create_user(
+        account_type: "manager"
+      )
+
+    TeamMembership.create!(
+      user: co_manager,
+      team: @team,
+      role: "manager",
+      status: "approved",
+      preferred_position: "CM"
+    )
+
+    token =
+      authentication_token_for(
+        co_manager
+      )
+
+    get endpoint,
+        headers: {
+          "Authorization" => token
+        },
+        as: :json
+
+    assert_response :forbidden
+
+    assert_includes(
+      JSON
+        .parse(
+          response.body
+        )
+        .fetch(
+          "error"
+        ),
+      "Only the team owner"
+    )
+  end
+
+  test "owner cannot manage Plus through a secondary team" do
+    primary_team =
+      @team
+
+    primary_team.update!(
+      owner_user: @manager
+    )
+
+    TeamEntitlementService.activate_paid_plus!(
+      team: primary_team,
+      provider: "google_play",
+      provider_subscription_id:
+        "primary-owner-subscription",
+      billing_period: "monthly",
+      provider_product_id:
+        "matchmuster_plus",
+      provider_base_plan_id:
+        "monthly",
+      starts_at: Time.current,
+      ends_at: Time.current + 30.days,
+      auto_renews: true
+    )
+
+    @team =
+      Team.create!(
+        name: "Secondary Billing FC",
+        owner_user: @manager
+      )
+
+    TeamMembership.create!(
+      user: @manager,
+      team: @team,
+      role: "manager",
+      status: "approved",
+      preferred_position: "CM"
+    )
+
+    get endpoint,
+        headers: {
+          "Authorization" =>
+            authentication_token_for(
+              @manager
+            )
+        },
+        as: :json
+
+    assert_response :forbidden
+
+    body =
+      JSON.parse(
+        response.body
+      )
+
+    assert_equal(
+      "subscription_primary_team_required",
+      body.fetch(
+        "code"
+      )
+    )
+
+    assert_equal(
+      primary_team.id,
+      body
+        .fetch(
+          "subscription_team"
+        )
+        .fetch(
+          "id"
+        )
     )
   end
 

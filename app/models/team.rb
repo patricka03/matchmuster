@@ -2,6 +2,11 @@ class Team < ApplicationRecord
   BILLING_ACCOUNT_TOKEN_FORMAT =
     /\A[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i.freeze
 
+  belongs_to :owner_user,
+             class_name: "User",
+             optional: true,
+             inverse_of: :owned_teams
+
   has_many :team_memberships,
            dependent: :destroy
 
@@ -78,6 +83,28 @@ class Team < ApplicationRecord
     team_entitlement&.days_remaining(
       at: at
     )
+  end
+
+  def canonical_owner
+    owner_user ||
+      team_memberships
+        .includes(:user)
+        .where(
+          role: "manager",
+          status: "approved"
+        )
+        .order(
+          :created_at,
+          :id
+        )
+        .first
+        &.user
+  end
+
+  def owned_by?(user)
+    return false unless user
+
+    canonical_owner&.id == user.id
   end
 
   private

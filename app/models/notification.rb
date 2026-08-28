@@ -12,6 +12,7 @@ class Notification < ApplicationRecord
   ACTIONABLE_TYPES = (
     AVAILABILITY_ACTION_TYPES +
     TRAINING_AVAILABILITY_ACTION_TYPES + %w[
+      squad_selection_reminder
       match_payment_requested
       match_payment_amount_changed
       match_payment_reminder
@@ -20,6 +21,7 @@ class Notification < ApplicationRecord
       motm_voting_open
       match_rating_open
       match_rating_reminder
+      subscription_preview_reminder
     ]
   ).uniq.freeze
 
@@ -38,6 +40,14 @@ class Notification < ApplicationRecord
 
     squad_selected
     squad_updated
+
+squad_selection_reminder
+match_kickoff_reminder
+match_started
+
+training_start_reminder
+training_started
+
 
     match_payment_requested
     match_payment_paid
@@ -67,6 +77,8 @@ class Notification < ApplicationRecord
 
     manager_status_updated
     app_update
+
+    subscription_preview_reminder
 
     training_availability_updated
     training_availability_reminder

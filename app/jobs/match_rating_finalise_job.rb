@@ -89,7 +89,7 @@ class MatchRatingFinaliseJob < ApplicationJob
       winners.first.user
 
     winners.each do |award|
-      Notification.create_once!(
+      NotificationDelivery.to_user_once(
         user: award.user,
 
         deduplication_key:
@@ -123,7 +123,7 @@ class MatchRatingFinaliseJob < ApplicationJob
           user.id
         )
 
-      Notification.create_once!(
+      NotificationDelivery.to_user_once(
         user: user,
 
         deduplication_key:
@@ -220,7 +220,7 @@ class MatchRatingFinaliseJob < ApplicationJob
     team_users(
       match
     ).each do |user|
-      Notification.create_once!(
+      NotificationDelivery.to_user_once(
         user: user,
 
         deduplication_key:

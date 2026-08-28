@@ -68,6 +68,10 @@ class Training < ApplicationRecord
                     if:
                       :should_schedule_automatic_availability_reminder?
 
+  after_save_commit :schedule_start_notifications,
+                    if:
+                      :should_schedule_automatic_availability_reminder?
+
   def recurring?
     recurrence_group_id.present?
   end
@@ -141,6 +145,46 @@ class Training < ApplicationRecord
         id,
         expected_starts_at
       )
+  end
+
+  def schedule_start_notifications
+    return if starts_at.blank?
+
+    expected_starts_at =
+      starts_at.iso8601
+
+    events = {
+      "one_hour" =>
+        starts_at - 1.hour,
+      "started" =>
+        starts_at
+    }
+
+    events.each do |event_type, run_at|
+      if run_at > Time.current
+        TrainingStartNotificationJob
+          .set(
+            wait_until: run_at
+          )
+          .perform_later(
+            id,
+            expected_starts_at,
+            event_type
+          )
+
+        next
+      end
+
+      next if event_type == "started"
+      next unless starts_at > Time.current
+
+      TrainingStartNotificationJob
+        .perform_later(
+          id,
+          expected_starts_at,
+          event_type
+        )
+    end
   end
 
   def should_schedule_automatic_availability_reminder?

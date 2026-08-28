@@ -39,7 +39,7 @@ class MatchRatingOpenJob < ApplicationJob
           user.id
         )
 
-      Notification.create_once!(
+      NotificationDelivery.to_user_once(
         user: user,
 
         deduplication_key:

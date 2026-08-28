@@ -25,7 +25,7 @@ config.jwt do |jwt|
     ["DELETE", %r{^/developer/logout$}]
   ]
 
-  jwt.expiration_time = 1.day.to_i
+  jwt.expiration_time = 90.days.to_i
 end
   # The secret key used by Devise. Devise uses this key to generate
   # random tokens. Changing this key will render invalid all existing

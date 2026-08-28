@@ -540,12 +540,60 @@ class Match < ApplicationRecord
   end
 
 # ========================================
+# SCHEDULE MATCH ENGAGEMENT NOTIFICATIONS
+# ========================================
+
+def schedule_match_engagement_notification_jobs
+  return if kickoff_time.blank?
+  return if cancelled_at.present?
+
+  expected_kickoff_time =
+    kickoff_time.iso8601
+
+  events = {
+    "squad_selection_reminder" =>
+      kickoff_time - 2.days,
+    "kickoff_reminder" =>
+      kickoff_time - 1.hour,
+    "match_started" =>
+      kickoff_time
+  }
+
+  events.each do |event_type, run_at|
+    if run_at > Time.current
+      MatchEngagementNotificationJob
+        .set(
+          wait_until: run_at
+        )
+        .perform_later(
+          id,
+          expected_kickoff_time,
+          event_type
+        )
+
+      next
+    end
+
+    next if event_type == "match_started"
+    next unless kickoff_time > Time.current
+
+    MatchEngagementNotificationJob
+      .perform_later(
+        id,
+        expected_kickoff_time,
+        event_type
+      )
+  end
+end
+
+# ========================================
 # SCHEDULE MATCH BACKGROUND JOBS
 # ========================================
 
   def schedule_match_background_jobs
     schedule_automatic_availability_reminder_job
     schedule_availability_deadline_job
+    schedule_match_engagement_notification_jobs
     schedule_match_rating_jobs
   end
 

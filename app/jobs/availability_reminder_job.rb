@@ -39,7 +39,7 @@ class AvailabilityReminderJob < ApplicationJob
         )
 
     players_to_remind.each do |membership|
-      Notification.create_once!(
+      NotificationDelivery.to_user_once(
         user: membership.user,
 
         deduplication_key:

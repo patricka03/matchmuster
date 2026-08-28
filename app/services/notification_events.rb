@@ -359,6 +359,7 @@ class NotificationEvents
 
       NotificationDelivery.to_managers(
         team: training.team,
+        training: training,
         actor: player,
         title: "Training availability updated",
         message:

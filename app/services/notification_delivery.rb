@@ -60,6 +60,106 @@ class NotificationDelivery
       )
     end
 
+def to_user_once(
+  user:,
+  deduplication_key:,
+  **attributes
+)
+  existing =
+    user
+      .notifications
+      .find_by(
+        deduplication_key:
+          deduplication_key
+      )
+
+  return existing if existing
+
+  notification =
+    user.notifications.create!(
+      notification_attributes(
+        attributes
+      ).merge(
+        deduplication_key:
+          deduplication_key
+      )
+    )
+
+  deliver_native_push(
+    user: user,
+    notification: notification
+  )
+
+  notification
+rescue ActiveRecord::RecordNotUnique
+  user
+    .notifications
+    .find_by!(
+      deduplication_key:
+        deduplication_key
+    )
+end
+
+def to_users_once(
+  users:,
+  deduplication_key:,
+  **attributes
+)
+  Array(users).each do |user|
+    to_user_once(
+      user: user,
+      deduplication_key:
+        deduplication_key,
+      **attributes
+    )
+  end
+end
+
+def to_managers_once(
+  team:,
+  deduplication_key:,
+  except: nil,
+  **attributes
+)
+  excluded_ids =
+    Array(except)
+      .compact
+      .map do |user_or_id|
+        user_or_id.respond_to?(:id) ?
+          user_or_id.id :
+          user_or_id
+      end
+
+  managers =
+    approved_members(
+      team,
+      role: "manager"
+    )
+      .where(
+        account_type:
+          "manager",
+        manager_verification_status:
+          "approved"
+      )
+
+  if excluded_ids.any?
+    managers =
+      managers.where.not(
+        id: excluded_ids
+      )
+  end
+
+  managers.find_each do |manager|
+    to_user_once(
+      user: manager,
+      deduplication_key:
+        deduplication_key,
+      team: team,
+      **attributes
+    )
+  end
+end
+
     private
 
     def approved_members(team, role: nil)
@@ -186,6 +286,7 @@ class NotificationDelivery
         :featured_user,
         :team,
         :match,
+        :training,
         :post,
         :match_payment
       )

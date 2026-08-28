@@ -40,7 +40,7 @@ class MatchRatingReminderJob < ApplicationJob
 
       next unless user
 
-      Notification.create_once!(
+      NotificationDelivery.to_user_once(
         user: user,
 
         deduplication_key:

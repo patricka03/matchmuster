@@ -170,7 +170,10 @@ class NotificationDelivery
           notification.match_payment_id,
 
         featured_user_id:
-          notification.featured_user_id
+          notification.featured_user_id,
+
+        training_id:
+          notification.training_id
       }
     end
 

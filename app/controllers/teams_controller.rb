@@ -53,6 +53,8 @@ class TeamsController < ApplicationController
         )
       )
 
+    entitlement = nil
+
     ActiveRecord::Base.transaction do
       @team.save!
 
@@ -64,10 +66,18 @@ class TeamsController < ApplicationController
         preferred_position: "CM"
       )
 
-      TeamEntitlementService.start_standard_trial!(
-        team: @team
-      )
+      entitlement =
+        TeamEntitlementService.start_standard_trial!(
+          team: @team
+        )
     end
+
+    SubscriptionPreviewReminderScheduler
+      .call(
+        team: @team,
+        entitlement: entitlement,
+        kind: "preview"
+      )
 
     @multi_team_owner_access = nil
 

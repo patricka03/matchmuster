@@ -49,7 +49,11 @@ class TeamSubscriptionResponse
       billing_period: nil,
       provider: nil,
       provider_product_id: nil,
-      provider_base_plan_id: nil
+      provider_base_plan_id: nil,
+      launch_club:
+        team.launch_club?,
+      launch_club_since:
+        team.launch_club_since
     }
   end
 
@@ -100,7 +104,13 @@ class TeamSubscriptionResponse
         entitlement.provider_product_id,
 
       provider_base_plan_id:
-        entitlement.provider_base_plan_id
+        entitlement.provider_base_plan_id,
+
+      launch_club:
+        team.launch_club?,
+
+      launch_club_since:
+        team.launch_club_since
     }
   end
 end

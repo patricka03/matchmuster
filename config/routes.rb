@@ -272,8 +272,24 @@ Rails.application.routes.draw do
         get "late_statuses",
             to: "match_late_statuses#index"
 
+        # MATCHMUSTER_RUNNING_LATE_COMPAT_V3
         put "late_status",
             to: "match_late_statuses#upsert"
+
+        post "late_status",
+             to: "match_late_statuses#upsert"
+
+        patch "late_status",
+              to: "match_late_statuses#upsert"
+
+        post "late_statuses",
+             to: "match_late_statuses#upsert"
+
+        put "late_statuses",
+            to: "match_late_statuses#upsert"
+
+        patch "late_statuses",
+              to: "match_late_statuses#upsert"
 
         delete "late_status",
                to: "match_late_statuses#destroy"

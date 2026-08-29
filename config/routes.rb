@@ -25,6 +25,12 @@ Rails.application.routes.draw do
   patch "developer/managers/:id/reject",
         to: "developers/managers#reject"
 
+  get "developer/launch_clubs",
+      to: "developers/launch_clubs#index"
+
+  patch "developer/launch_clubs/:id/grant",
+        to: "developers/launch_clubs#grant"
+
   post "developer/app_updates",
        to: "developers/app_updates#create"
 
@@ -94,6 +100,13 @@ Rails.application.routes.draw do
   delete "/users/account",
          to: "users#destroy_account"
 
+  # ========================================
+  # SOCIAL SIGN-IN
+  # ========================================
+
+  post "auth/social",
+       to: "social_auth#create"
+
 
   # ========================================
   # PUSH DEVICES
@@ -150,6 +163,43 @@ Rails.application.routes.draw do
 
           to:
             "team_awards#show"
+
+      # ========================================
+      # CLUB FINANCE — PLUS
+      # ========================================
+
+      resource :finance,
+               only: %i[show],
+               controller: "team_finances"
+
+      resources :finance_entries,
+                only: %i[create update destroy],
+                controller: "team_finance_entries"
+
+      # ========================================
+      # DIRECT MESSAGES
+      # ========================================
+
+      resources :conversations,
+                only: %i[index show create] do
+        collection do
+          get :recipients
+        end
+
+        member do
+          patch :read
+        end
+
+        resources :messages,
+                  only: %i[index create]
+      end
+
+      # ========================================
+      # MATCHDAY RUNNING LATE
+      # ========================================
+
+      get "matchday/late_statuses",
+          to: "match_late_statuses#matchday"
 
       member do
         post :stripe_connect
@@ -219,6 +269,15 @@ Rails.application.routes.draw do
                   update
                   destroy
                 ] do
+        get "late_statuses",
+            to: "match_late_statuses#index"
+
+        put "late_status",
+            to: "match_late_statuses#upsert"
+
+        delete "late_status",
+               to: "match_late_statuses#destroy"
+
         resources :match_player_stats,
                   only: %i[
                     index

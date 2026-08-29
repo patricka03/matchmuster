@@ -82,6 +82,9 @@ training_started
 
     training_availability_updated
     training_availability_reminder
+
+    match_late_update
+    direct_message
   ].freeze
 
   belongs_to :user
@@ -103,6 +106,9 @@ training_started
              optional: true
 
   belongs_to :training,
+             optional: true
+
+  belongs_to :conversation,
              optional: true
 
   belongs_to :post,

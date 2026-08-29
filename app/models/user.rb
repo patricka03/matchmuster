@@ -46,6 +46,22 @@ class User < ApplicationRecord
   has_many :blocked_by_users, through: :received_blocks, source: :blocker
   has_many :moderation_actions_received, class_name: "ModerationAction", foreign_key: :target_user_id, inverse_of: :target_user, dependent: :nullify
   has_many :training_availabilities, dependent: :destroy
+  has_many :match_late_statuses, dependent: :destroy
+  has_many :conversation_participants, dependent: :destroy
+  has_many :conversations, through: :conversation_participants
+  has_many :sent_messages,
+           class_name: "Message",
+           foreign_key: :sender_id,
+           dependent: :destroy
+  has_many :created_conversations,
+           class_name: "Conversation",
+           foreign_key: :created_by_id,
+           dependent: :nullify
+  has_many :social_identities, dependent: :destroy
+  has_many :team_finance_entries_created,
+           class_name: "TeamFinanceEntry",
+           foreign_key: :created_by_id,
+           dependent: :nullify
 
   has_one_attached :avatar
 

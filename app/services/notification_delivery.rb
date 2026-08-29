@@ -273,7 +273,10 @@ end
           notification.featured_user_id,
 
         training_id:
-          notification.training_id
+          notification.training_id,
+
+        conversation_id:
+          notification.conversation_id
       }
     end
 
@@ -287,6 +290,7 @@ end
         :team,
         :match,
         :training,
+        :conversation,
         :post,
         :match_payment
       )

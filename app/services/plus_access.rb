@@ -41,6 +41,9 @@ class PlusAccess
     matchday_eta:
       "Matchday ETA",
 
+    club_finance:
+      "Club Finance",
+
     multi_team_manager_centre:
       "Multi-team Manager Centre",
 

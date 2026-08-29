@@ -99,6 +99,14 @@ class UsersController < ApplicationController
       user.availabilities.destroy_all
       user.squad_selections.destroy_all
       user.posts.destroy_all
+      user.match_late_statuses.destroy_all
+      user.conversation_participants.destroy_all
+      user.sent_messages.destroy_all
+      user.social_identities.destroy_all
+
+      # Team finance entries are retained as club records.
+      # The user record below is anonymised, so any retained
+      # creator relationship no longer exposes personal data.
 
       # We intentionally preserve:
       #

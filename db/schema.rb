@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,6 +51,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.index ["match_id", "user_id"], name: "index_availabilities_on_match_id_and_user_id", unique: true
     t.index ["match_id"], name: "index_availabilities_on_match_id"
     t.index ["user_id"], name: "index_availabilities_on_user_id"
+  end
+
+  create_table "conversation_participants", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "last_read_at"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["conversation_id", "user_id"], name: "index_conversation_participants_unique", unique: true
+    t.index ["conversation_id"], name: "index_conversation_participants_on_conversation_id"
+    t.index ["user_id"], name: "index_conversation_participants_on_user_id"
+  end
+
+  create_table "conversations", force: :cascade do |t|
+    t.string "conversation_type", default: "direct", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.string "direct_key", null: false
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_conversations_on_created_by_id"
+    t.index ["team_id", "direct_key"], name: "index_conversations_on_team_id_and_direct_key", unique: true
+    t.index ["team_id"], name: "index_conversations_on_team_id"
   end
 
   create_table "developer_account_actions", force: :cascade do |t|
@@ -102,6 +125,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.index ["match_id", "user_id", "award_type"], name: "index_match_awards_unique", unique: true
     t.index ["match_id"], name: "index_match_awards_on_match_id"
     t.index ["user_id"], name: "index_match_awards_on_user_id"
+  end
+
+  create_table "match_late_statuses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "match_id", null: false
+    t.integer "minutes_late", null: false
+    t.string "note", limit: 160
+    t.datetime "reported_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["match_id", "user_id"], name: "index_match_late_statuses_on_match_id_and_user_id", unique: true
+    t.index ["match_id"], name: "index_match_late_statuses_on_match_id"
+    t.index ["user_id"], name: "index_match_late_statuses_on_user_id"
+    t.check_constraint "minutes_late >= 1 AND minutes_late <= 300", name: "match_late_statuses_minutes_range"
   end
 
   create_table "match_payments", force: :cascade do |t|
@@ -179,6 +216,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.check_constraint "team_score >= 0", name: "matches_team_score_non_negative"
   end
 
+  create_table "messages", force: :cascade do |t|
+    t.text "body", null: false
+    t.bigint "conversation_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "sender_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
+    t.index ["conversation_id"], name: "index_messages_on_conversation_id"
+    t.index ["sender_id"], name: "index_messages_on_sender_id"
+  end
+
   create_table "moderation_actions", force: :cascade do |t|
     t.string "action_type", null: false
     t.datetime "created_at", null: false
@@ -196,6 +244,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
 
   create_table "notifications", force: :cascade do |t|
     t.bigint "actor_id"
+    t.bigint "conversation_id"
     t.datetime "created_at", null: false
     t.string "deduplication_key"
     t.bigint "featured_user_id"
@@ -213,6 +262,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
+    t.index ["conversation_id"], name: "index_notifications_on_conversation_id"
     t.index ["featured_user_id"], name: "index_notifications_on_featured_user_id"
     t.index ["match_id"], name: "index_notifications_on_match_id"
     t.index ["match_payment_id"], name: "index_notifications_on_match_payment_id"
@@ -275,6 +325,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.index ["reporter_id"], name: "index_reports_on_reporter_id"
     t.index ["reviewed_by_id"], name: "index_reports_on_reviewed_by_id"
     t.index ["status", "created_at"], name: "index_reports_on_status_and_created_at"
+  end
+
+  create_table "social_identities", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email"
+    t.string "provider", null: false
+    t.string "uid", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["provider", "uid"], name: "index_social_identities_on_provider_and_uid", unique: true
+    t.index ["user_id", "provider"], name: "index_social_identities_on_user_id_and_provider", unique: true
+    t.index ["user_id"], name: "index_social_identities_on_user_id"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -460,6 +522,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.index ["team_id"], name: "index_team_entitlements_on_team_id", unique: true
   end
 
+  create_table "team_finance_entries", force: :cascade do |t|
+    t.integer "amount_pence", null: false
+    t.string "category", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.string "description", null: false
+    t.string "entry_type", null: false
+    t.bigint "match_id"
+    t.date "occurred_on", null: false
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_team_finance_entries_on_created_by_id"
+    t.index ["match_id"], name: "index_team_finance_entries_on_match_id"
+    t.index ["team_id", "occurred_on"], name: "index_team_finance_entries_on_team_id_and_occurred_on"
+    t.index ["team_id"], name: "index_team_finance_entries_on_team_id"
+    t.check_constraint "amount_pence > 0", name: "team_finance_entries_amount_positive"
+  end
+
   create_table "team_memberships", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "preferred_position"
@@ -478,12 +558,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
     t.datetime "created_at", null: false
     t.text "description"
     t.string "invite_code"
+    t.datetime "launch_club_since"
     t.string "name"
     t.bigint "owner_user_id"
     t.string "stripe_account_id"
     t.datetime "updated_at", null: false
     t.index ["billing_account_token"], name: "index_teams_on_billing_account_token", unique: true
     t.index ["invite_code"], name: "index_teams_on_invite_code", unique: true
+    t.index ["launch_club_since"], name: "index_teams_on_launch_club_since"
     t.index ["owner_user_id"], name: "index_teams_on_owner_user_id"
     t.index ["stripe_account_id"], name: "index_teams_on_stripe_account_id", unique: true
   end
@@ -558,11 +640,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
+  add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
+  add_foreign_key "conversation_participants", "users"
+  add_foreign_key "conversations", "teams"
+  add_foreign_key "conversations", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "developer_account_actions", "developers"
   add_foreign_key "developer_account_actions", "users", column: "target_user_id"
   add_foreign_key "legal_acceptances", "users"
   add_foreign_key "match_awards", "matches"
   add_foreign_key "match_awards", "users"
+  add_foreign_key "match_late_statuses", "matches"
+  add_foreign_key "match_late_statuses", "users"
   add_foreign_key "match_payments", "matches"
   add_foreign_key "match_payments", "users"
   add_foreign_key "match_player_stats", "matches"
@@ -571,9 +659,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
   add_foreign_key "match_ratings", "users", column: "player_id"
   add_foreign_key "match_ratings", "users", column: "rater_id"
   add_foreign_key "matches", "teams"
+  add_foreign_key "messages", "conversations", on_delete: :cascade
+  add_foreign_key "messages", "users", column: "sender_id"
   add_foreign_key "moderation_actions", "developers"
   add_foreign_key "moderation_actions", "reports"
   add_foreign_key "moderation_actions", "users", column: "target_user_id"
+  add_foreign_key "notifications", "conversations", on_delete: :nullify
   add_foreign_key "notifications", "match_payments"
   add_foreign_key "notifications", "matches"
   add_foreign_key "notifications", "posts"
@@ -590,6 +681,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
   add_foreign_key "reports", "developers", column: "reviewed_by_id"
   add_foreign_key "reports", "users", column: "reported_user_id"
   add_foreign_key "reports", "users", column: "reporter_id"
+  add_foreign_key "social_identities", "users", on_delete: :cascade
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
@@ -600,6 +692,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_27_090000) do
   add_foreign_key "squad_selections", "users"
   add_foreign_key "store_subscription_events", "teams"
   add_foreign_key "team_entitlements", "teams"
+  add_foreign_key "team_finance_entries", "matches", on_delete: :nullify
+  add_foreign_key "team_finance_entries", "teams", on_delete: :cascade
+  add_foreign_key "team_finance_entries", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "team_memberships", "teams"
   add_foreign_key "team_memberships", "users"
   add_foreign_key "teams", "users", column: "owner_user_id"

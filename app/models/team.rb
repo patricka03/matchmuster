@@ -22,6 +22,12 @@ class Team < ApplicationRecord
   has_many :trainings,
            dependent: :destroy
 
+  has_many :conversations,
+           dependent: :destroy
+
+  has_many :team_finance_entries,
+           dependent: :destroy
+
   has_one :team_entitlement,
           dependent: :destroy
 
@@ -83,6 +89,10 @@ class Team < ApplicationRecord
     team_entitlement&.days_remaining(
       at: at
     )
+  end
+
+  def launch_club?
+    launch_club_since.present?
   end
 
   def canonical_owner

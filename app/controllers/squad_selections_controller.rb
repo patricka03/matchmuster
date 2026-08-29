@@ -11,6 +11,7 @@ class SquadSelectionsController < ApplicationController
                   create
                   update
                   destroy
+                  not_selected
                 ]
 
   before_action :set_squad_selection,
@@ -107,15 +108,50 @@ class SquadSelectionsController < ApplicationController
     SquadSelection.transaction do
       @squad_selection.destroy!
 
-      NotificationEvents.squad_published(
+      NotificationEvents.squad_not_selected(
         match: @match,
         actor: current_user,
-        updated: true,
         recipient: removed_player
       )
     end
 
     head :no_content
+  end
+
+  def not_selected
+    player =
+      User.find(
+        params.require(:user_id)
+      )
+
+    approved_player =
+      @team.team_memberships.exists?(
+        user_id: player.id,
+        role: "player",
+        status: "approved"
+      )
+
+    unless approved_player
+      return render json: {
+        error:
+          "You can only mark approved team players as not selected."
+      }, status: :forbidden
+    end
+
+    NotificationEvents.squad_not_selected(
+      match: @match,
+      actor: current_user,
+      recipient: player
+    )
+
+    render json: {
+      not_selected: true,
+      user_id: player.id
+    }, status: :ok
+  rescue ActiveRecord::RecordNotFound
+    render json: {
+      error: "Player not found."
+    }, status: :not_found
   end
 
   private

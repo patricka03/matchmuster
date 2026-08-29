@@ -343,7 +343,11 @@ Rails.application.routes.draw do
                     create
                     update
                     destroy
-                  ]
+                  ] do
+          collection do
+            post :not_selected
+          end
+        end
 
 
         # ----------------------------------------

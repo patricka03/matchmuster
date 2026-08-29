@@ -225,10 +225,23 @@ class ConversationsController < ApplicationController
         status: "approved"
       )
 
+    full_name =
+      [user.first_name, user.last_name]
+        .compact
+        .join(" ")
+        .strip
+
+    display_name =
+      full_name.presence ||
+      user.email.to_s.split("@").first
+
     {
       id: user.id,
+      name: display_name,
+      full_name: display_name,
       first_name: user.first_name,
       last_name: user.last_name,
+      email: user.email,
       account_type: user.account_type,
       role: membership&.role,
       preferred_position: membership&.preferred_position

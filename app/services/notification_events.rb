@@ -193,6 +193,23 @@ class NotificationEvents
       )
     end
 
+    def squad_not_selected(
+      match:,
+      actor:,
+      recipient:
+    )
+      NotificationDelivery.to_user(
+        user: recipient,
+        actor: actor,
+        team: match.team,
+        match: match,
+        title: "Not selected for this match",
+        message:
+          "You have not been selected for the match against #{match.opponent}.",
+        notification_type: "squad_updated"
+      )
+    end
+
     def squad_published(
       match:,
       actor:,

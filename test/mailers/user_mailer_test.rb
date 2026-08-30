@@ -9,12 +9,16 @@ class UserMailerTest < ActionMailer::TestCase
     assert_equal ["support@matchmuster.uk"], mail.from
 
     assert_match "Hi Jordan,", mail.text_part.body.decoded
+    assert_match "Welcome to MatchMuster! We’re delighted to have you with us.", mail.text_part.body.decoded
     assert_match "As a player, you can:", mail.text_part.body.decoded
     assert_match "completely free for players", mail.text_part.body.decoded
+    assert_match "We’re excited to have you as part of the journey.", mail.text_part.body.decoded
     assert_no_match "MatchMuster Plus includes", mail.text_part.body.decoded
 
     assert_match "As a player, you can:", mail.html_part.body.decoded
     assert_match "support@matchmuster.uk", mail.html_part.body.decoded
+    assert_no_match "[MatchMuster logo centred at the top]", mail.html_part.body.decoded
+    assert_no_match "The real logo will be centred", mail.html_part.body.decoded
 
     assert_inline_logo(mail)
   end
@@ -27,13 +31,17 @@ class UserMailerTest < ActionMailer::TestCase
     assert_equal ["support@matchmuster.uk"], mail.from
 
     assert_match "Hi Jordan,", mail.text_part.body.decoded
+    assert_match "Welcome to MatchMuster! We’re delighted to have you and your team with us.", mail.text_part.body.decoded
     assert_match "With MatchMuster Free, you can:", mail.text_part.body.decoded
     assert_match "MatchMuster Plus includes:", mail.text_part.body.decoded
     assert_match "Players will never need to pay", mail.text_part.body.decoded
+    assert_match "We’re excited to be part of your season.", mail.text_part.body.decoded
     assert_no_match "As a player, you can:", mail.text_part.body.decoded
 
     assert_match "MatchMuster Plus includes:", mail.html_part.body.decoded
     assert_match "support@matchmuster.uk", mail.html_part.body.decoded
+    assert_no_match "[MatchMuster logo centred at the top]", mail.html_part.body.decoded
+    assert_no_match "The real logo will be centred", mail.html_part.body.decoded
 
     assert_inline_logo(mail)
   end

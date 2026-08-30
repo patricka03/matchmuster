@@ -3,9 +3,9 @@ class ConversationsController < ApplicationController
   before_action :set_team
   before_action :authorize_team_member!
   before_action :set_conversation,
-                only: %i[show read]
+                only: %i[show read destroy]
   before_action :authorize_participant!,
-                only: %i[show read]
+                only: %i[show read destroy]
 
   def index
     conversations =
@@ -24,12 +24,24 @@ class ConversationsController < ApplicationController
         .order(updated_at: :desc)
         .limit(100)
 
-    render json: {
-      conversations:
-        conversations.map {
-          |conversation|
+    payload =
+      conversations.filter_map do |conversation|
+        participant =
+          conversation.participant_record_for(current_user)
+
+        data =
           conversation_json(conversation)
-        }
+
+        if participant&.cleared_at.present? &&
+           data[:last_message].nil?
+          next
+        end
+
+        data
+      end
+
+    render json: {
+      conversations: payload
     }, status: :ok
   end
 
@@ -57,7 +69,40 @@ class ConversationsController < ApplicationController
         .where.not(id: blocked_ids)
         .where(deleted_at: nil, suspended_at: nil, banned_at: nil)
         .distinct
-        .order(:first_name, :last_name)
+
+    query =
+      params[:q]
+        .to_s
+        .strip
+        .downcase
+
+    if query.present?
+      escaped =
+        ActiveRecord::Base
+          .sanitize_sql_like(query)
+
+      pattern =
+        "%#{escaped}%"
+
+      users =
+        users.where(
+          <<~SQL.squish,
+            LOWER(COALESCE(users.first_name, '')) LIKE :query
+            OR LOWER(COALESCE(users.last_name, '')) LIKE :query
+            OR LOWER(COALESCE(users.email, '')) LIKE :query
+            OR LOWER(
+              COALESCE(users.first_name, '') || ' ' ||
+              COALESCE(users.last_name, '')
+            ) LIKE :query
+          SQL
+          query: pattern
+        )
+    end
+
+    users =
+      users
+        .order(:first_name, :last_name, :email)
+        .limit(50)
 
     memberships =
       @team
@@ -134,6 +179,19 @@ class ConversationsController < ApplicationController
     }, status: :ok
   end
 
+  # Delete-chat behaviour is intentionally per-user.
+  # The other participant keeps their own copy of the conversation.
+  def destroy
+    participant =
+      @conversation.participant_record_for(current_user)
+
+    participant&.clear_chat!
+
+    render json: {
+      message: "Chat deleted."
+    }, status: :ok
+  end
+
   private
 
   def set_team
@@ -188,9 +246,19 @@ class ConversationsController < ApplicationController
     other =
       conversation.other_participant_for(current_user)
 
+    last_message_scope =
+      conversation.messages
+
+    if participant&.cleared_at.present?
+      last_message_scope =
+        last_message_scope.where(
+          "created_at > ?",
+          participant.cleared_at
+        )
+    end
+
     last_message =
-      conversation
-        .messages
+      last_message_scope
         .order(created_at: :desc)
         .first
 
@@ -212,7 +280,9 @@ class ConversationsController < ApplicationController
       id: message.id,
       body: message.body,
       sender_id: message.sender_id,
-      created_at: message.created_at
+      created_at: message.created_at,
+      updated_at: message.updated_at,
+      edited_at: message.edited_at
     }
   end
 

@@ -181,7 +181,7 @@ Rails.application.routes.draw do
       # ========================================
 
       resources :conversations,
-                only: %i[index show create] do
+                only: %i[index show create destroy] do
         collection do
           get :recipients
         end
@@ -191,7 +191,7 @@ Rails.application.routes.draw do
         end
 
         resources :messages,
-                  only: %i[index create]
+                  only: %i[index create update destroy]
       end
 
       # ========================================

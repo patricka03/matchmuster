@@ -15,6 +15,14 @@ class ConversationParticipant < ApplicationRecord
           sender_id: user_id
         )
 
+    if cleared_at.present?
+      scope =
+        scope.where(
+          "created_at > ?",
+          cleared_at
+        )
+    end
+
     if last_read_at.present?
       scope =
         scope.where(
@@ -28,5 +36,14 @@ class ConversationParticipant < ApplicationRecord
 
   def mark_read!
     touch(:last_read_at)
+  end
+
+  def clear_chat!
+    now = Time.current
+
+    update!(
+      cleared_at: now,
+      last_read_at: now
+    )
   end
 end

@@ -30,6 +30,14 @@ class User < ApplicationRecord
   has_many :featured_notifications, class_name: "Notification", foreign_key: :featured_user_id, inverse_of: :featured_user, dependent: :nullify
   has_many :match_payments, dependent: :destroy
   has_many :availabilities, dependent: :destroy
+
+  has_many :player_fitness_statuses, dependent: :destroy
+  has_many :updated_player_fitness_statuses,
+           class_name: "PlayerFitnessStatus",
+           foreign_key: :updated_by_id,
+           dependent: :nullify
+
+  has_many :availability_status_changes, dependent: :destroy
   has_many :matches, through: :availabilities
   has_many :post_reads, dependent: :destroy
   has_many :read_posts, through: :post_reads, source: :post

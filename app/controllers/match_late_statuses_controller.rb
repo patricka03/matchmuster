@@ -40,7 +40,8 @@ class MatchLateStatusesController < ApplicationController
         status_scope(match).map {
           |status| status_json(status)
         },
-      reporting_open: true
+      reporting_open:
+        matchday_open?(match)
     }, status: :ok
   end
 
@@ -145,6 +146,8 @@ class MatchLateStatusesController < ApplicationController
 
   # MATCHMUSTER_SELECTED_RUNNING_LATE_V1
   def status_scope(match)
+    return match.match_late_statuses.none if late_window_closed?(match)
+
     allowed_user_ids =
       (
         manager_user_ids +
@@ -183,18 +186,30 @@ class MatchLateStatusesController < ApplicationController
 
     return nil if matches.empty?
 
-    matches.find {
+    upcoming_match = matches.find {
       |match| match.kickoff_time >= Time.current
-    } || matches.last
+    }
+
+    upcoming_match || matches.reverse.find {
+      |match| !late_window_closed?(match)
+    }
   end
 
   def matchday_open?(match)
     return false if match.cancelled_at.present? || match.kickoff_time.blank?
+    return false if late_window_closed?(match)
 
     zone = matchmuster_zone
 
     Time.current.in_time_zone(zone).to_date ==
       match.kickoff_time.in_time_zone(zone).to_date
+  end
+
+  def late_window_closed?(match)
+    return true if match.kickoff_time.blank?
+
+    Time.current >=
+      match.kickoff_time + 2.hours
   end
 
   def matchmuster_zone

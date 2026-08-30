@@ -28,6 +28,12 @@ class Team < ApplicationRecord
   has_many :team_finance_entries,
            dependent: :destroy
 
+  has_many :player_fitness_statuses,
+           dependent: :destroy
+
+  has_many :availability_status_changes,
+           dependent: :destroy
+
   has_one :team_entitlement,
           dependent: :destroy
 

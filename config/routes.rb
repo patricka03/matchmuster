@@ -172,6 +172,13 @@ Rails.application.routes.draw do
                only: %i[show],
                controller: "team_finances"
 
+      get "squad_analytics",
+          to: "squad_analytics#show",
+          as: :squad_analytics
+
+      patch "player_fitness_statuses/:user_id",
+            to: "player_fitness_statuses#update"
+
       resources :finance_entries,
                 only: %i[create update destroy],
                 controller: "team_finance_entries"

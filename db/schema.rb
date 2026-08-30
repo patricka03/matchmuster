@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -53,12 +53,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
     t.index ["user_id"], name: "index_availabilities_on_user_id"
   end
 
+  create_table "availability_status_changes", force: :cascade do |t|
+    t.datetime "changed_at", null: false
+    t.datetime "created_at", null: false
+    t.string "from_status", null: false
+    t.bigint "match_id", null: false
+    t.bigint "team_id", null: false
+    t.string "to_status", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.boolean "was_selected", default: false, null: false
+    t.index ["match_id"], name: "index_availability_status_changes_on_match_id"
+    t.index ["team_id", "user_id", "changed_at"], name: "index_availability_changes_for_team_player"
+    t.index ["team_id"], name: "index_availability_status_changes_on_team_id"
+    t.index ["user_id"], name: "index_availability_status_changes_on_user_id"
+  end
+
   create_table "conversation_participants", force: :cascade do |t|
+    t.datetime "cleared_at"
     t.bigint "conversation_id", null: false
     t.datetime "created_at", null: false
     t.datetime "last_read_at"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["cleared_at"], name: "index_conversation_participants_on_cleared_at"
     t.index ["conversation_id", "user_id"], name: "index_conversation_participants_unique", unique: true
     t.index ["conversation_id"], name: "index_conversation_participants_on_conversation_id"
     t.index ["user_id"], name: "index_conversation_participants_on_user_id"
@@ -220,10 +238,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
     t.text "body", null: false
     t.bigint "conversation_id", null: false
     t.datetime "created_at", null: false
+    t.datetime "edited_at"
     t.bigint "sender_id", null: false
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
+    t.index ["edited_at"], name: "index_messages_on_edited_at"
     t.index ["sender_id"], name: "index_messages_on_sender_id"
   end
 
@@ -271,6 +291,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
     t.index ["training_id"], name: "index_notifications_on_training_id"
     t.index ["user_id", "deduplication_key"], name: "index_notifications_on_user_and_deduplication_key", unique: true, where: "(deduplication_key IS NOT NULL)"
     t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "player_fitness_statuses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "expected_return_on"
+    t.string "note", limit: 160
+    t.string "status", default: "fit", null: false
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "updated_by_id"
+    t.bigint "user_id", null: false
+    t.index ["team_id", "user_id"], name: "index_player_fitness_statuses_on_team_id_and_user_id", unique: true
+    t.index ["team_id"], name: "index_player_fitness_statuses_on_team_id"
+    t.index ["updated_by_id"], name: "index_player_fitness_statuses_on_updated_by_id"
+    t.index ["user_id"], name: "index_player_fitness_statuses_on_user_id"
+    t.check_constraint "status::text = ANY (ARRAY['fit'::character varying, 'doubtful'::character varying, 'injured'::character varying, 'recovering'::character varying]::text[])", name: "player_fitness_statuses_valid_status"
   end
 
   create_table "post_reads", force: :cascade do |t|
@@ -640,6 +676,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "availabilities", "matches"
   add_foreign_key "availabilities", "users"
+  add_foreign_key "availability_status_changes", "matches"
+  add_foreign_key "availability_status_changes", "teams"
+  add_foreign_key "availability_status_changes", "users"
   add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
   add_foreign_key "conversation_participants", "users"
   add_foreign_key "conversations", "teams"
@@ -673,6 +712,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_29_201300) do
   add_foreign_key "notifications", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "notifications", "users", column: "featured_user_id"
+  add_foreign_key "player_fitness_statuses", "teams"
+  add_foreign_key "player_fitness_statuses", "users"
+  add_foreign_key "player_fitness_statuses", "users", column: "updated_by_id", on_delete: :nullify
   add_foreign_key "post_reads", "posts"
   add_foreign_key "post_reads", "users"
   add_foreign_key "posts", "teams"

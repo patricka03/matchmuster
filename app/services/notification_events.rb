@@ -289,6 +289,29 @@ class NotificationEvents
       )
     end
 
+    def payment_marked_paid_manually(
+      match_payment:,
+      actor:
+    )
+      amount =
+        formatted_amount(
+          match_payment.amount_pence
+        )
+
+      NotificationDelivery.to_user(
+        user: match_payment.user,
+        actor: actor,
+        team: match_payment.match.team,
+        match: match_payment.match,
+        match_payment: match_payment,
+        title: "Match Sub paid",
+        message:
+          "Your Match Sub of #{amount} has been marked as paid in cash.",
+        notification_type:
+          "match_payment_paid"
+      )
+    end
+
     def payment_paid(match_payment:)
       player =
         match_payment.user

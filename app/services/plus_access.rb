@@ -23,6 +23,9 @@ class PlusAccess
     squad_health:
       "Squad health",
 
+    squad_analytics:
+      "Squad Analytics",
+
     injury_fitness_status:
       "Injury and fitness status",
 

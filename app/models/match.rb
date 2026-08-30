@@ -28,6 +28,9 @@ class Match < ApplicationRecord
   has_many :availabilities,
            dependent: :destroy
 
+  has_many :availability_status_changes,
+           dependent: :destroy
+
   has_many :users,
            through: :availabilities
 

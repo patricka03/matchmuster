@@ -11,6 +11,9 @@ class Availability < ApplicationRecord
   after_save :remove_from_matchday_squad_if_unavailable,
              if: :became_unavailable_before_kickoff?
 
+  after_update :record_status_change,
+               if: :saved_change_to_status?
+
   belongs_to :user
   belongs_to :match
 
@@ -62,5 +65,17 @@ class Availability < ApplicationRecord
 
     @removed_from_matchday_squad =
       true
+  end
+
+  def record_status_change
+    AvailabilityStatusChange.create!(
+      team: match.team,
+      match: match,
+      user: user,
+      from_status: status_before_last_save,
+      to_status: status,
+      was_selected: match.squad_selections.exists?(user_id: user_id),
+      changed_at: Time.current
+    )
   end
 end

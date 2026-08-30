@@ -96,71 +96,202 @@ class MatchPaymentsController < ApplicationController
   end
 
   def update
-    requested_status = update_payment_params[:status]
-    new_amount = update_payment_params[:amount_pence]
+    requested_status =
+      update_payment_params[:status].presence
 
-    if requested_status.present? && requested_status != "waived"
+    new_amount =
+      update_payment_params[:amount_pence]
+
+    allowed_statuses =
+      %w[
+        paid
+        waived
+        pending
+      ]
+
+    if requested_status.present? &&
+        !allowed_statuses.include?(requested_status)
       return render json: {
-        error: "Managers can only waive a pending payment. Stripe confirms paid payments."
+        error:
+          "Managers can mark a Match Sub as paid in cash, waive it, or reset it to pending."
       }, status: :unprocessable_entity
     end
 
     parsed_amount =
-      Integer(new_amount, exception: false) if new_amount.present?
+      Integer(
+        new_amount,
+        exception: false
+      ) if new_amount.present?
 
-    if new_amount.present? && parsed_amount.nil?
+    if new_amount.present? &&
+        parsed_amount.nil?
       return render json: {
-        error: "Amount must be a whole number of pence"
+        error:
+          "Amount must be a whole number of pence"
       }, status: :unprocessable_entity
     end
 
     @match_payment.with_lock do
-      unless @match_payment.status == "pending"
+      amount_changed =
+        parsed_amount.present? &&
+        parsed_amount !=
+          @match_payment.amount_pence
+
+      status_changed =
+        requested_status.present? &&
+        requested_status !=
+          @match_payment.status
+
+      unless amount_changed ||
+          status_changed
+        return render json:
+          @match_payment,
+          status: :ok
+      end
+
+      if amount_changed &&
+          @match_payment.status !=
+            "pending"
         return render json: {
-          error: "Only pending payments can be changed"
+          error:
+            "Only pending payments can have their amount changed"
         }, status: :unprocessable_entity
       end
 
-      amount_changed =
-        parsed_amount.present? &&
-        parsed_amount != @match_payment.amount_pence
+      case requested_status
+      when "paid"
+        unless @match_payment.status ==
+            "pending"
+          return render json: {
+            error:
+              "Only a pending Match Sub can be marked as paid in cash"
+          }, status: :unprocessable_entity
+        end
 
-      waiver_requested =
-        requested_status == "waived"
+      when "waived"
+        unless @match_payment.status ==
+            "pending"
+          return render json: {
+            error:
+              "Only a pending Match Sub can be waived"
+          }, status: :unprocessable_entity
+        end
 
-      unless amount_changed || waiver_requested
-        return render json: @match_payment,
-                      status: :ok
+      when "pending"
+        unless %w[
+          paid
+          waived
+        ].include?(
+          @match_payment.status
+        )
+          return render json: {
+            error:
+              "Only paid or waived Match Subs can be reset to pending"
+          }, status: :unprocessable_entity
+        end
+
+        if @match_payment.status ==
+            "paid" &&
+            @match_payment
+              .stripe_payment_intent_id
+              .present?
+          return render json: {
+            error:
+              "Stripe-confirmed payments cannot be reset to pending"
+          }, status: :unprocessable_entity
+        end
       end
 
-      session_state =
-        expire_stored_checkout_session
+      needs_checkout_clear =
+        amount_changed ||
+        %w[
+          paid
+          waived
+        ].include?(
+          requested_status
+        )
 
-      unless session_state == :cleared
-        return render json: {
-          error: "Stripe is confirming this payment. Please refresh shortly."
-        }, status: :conflict
+      if needs_checkout_clear
+        session_state =
+          expire_stored_checkout_session
+
+        unless session_state ==
+            :cleared
+          return render json: {
+            error:
+              "Stripe is confirming this payment. Please refresh shortly."
+          }, status: :conflict
+        end
       end
 
-      attributes = {
-        stripe_checkout_session_id: nil
-      }
+      attributes = {}
 
-      attributes[:amount_pence] = parsed_amount if amount_changed
-      attributes[:status] = "waived" if waiver_requested
+      if amount_changed
+        attributes[:amount_pence] =
+          parsed_amount
+      end
 
-      if @match_payment.update(attributes)
-        if waiver_requested
+      case requested_status
+      when "paid"
+        attributes[:status] =
+          "paid"
+
+        attributes[:paid_at] =
+          Time.current
+
+        attributes[
+          :stripe_checkout_session_id
+        ] = nil
+
+      when "waived"
+        attributes[:status] =
+          "waived"
+
+        attributes[:paid_at] =
+          nil
+
+        attributes[
+          :stripe_checkout_session_id
+        ] = nil
+
+      when "pending"
+        attributes[:status] =
+          "pending"
+
+        attributes[:paid_at] =
+          nil
+
+        # A manually-paid or waived Match Sub
+        # must reopen cleanly.
+        attributes[
+          :stripe_checkout_session_id
+        ] = nil
+      end
+
+      if @match_payment.update(
+        attributes
+      )
+        if requested_status ==
+            "paid"
+          create_cash_paid_notification
+
+        elsif requested_status ==
+            "waived"
           create_waived_notification
+
         elsif amount_changed
           create_amount_changed_notification
         end
 
-        render json: @match_payment,
-               status: :ok
+        render json:
+          @match_payment,
+          status: :ok
       else
         render json: {
-          errors: @match_payment.errors.full_messages
+          errors:
+            @match_payment
+              .errors
+              .full_messages
         }, status: :unprocessable_entity
       end
     end
@@ -170,7 +301,8 @@ class MatchPaymentsController < ApplicationController
     )
 
     render json: {
-      error: "Stripe could not safely cancel the Checkout Session. No changes were made."
+      error:
+        "Stripe could not safely cancel the Checkout Session. No changes were made."
     }, status: :unprocessable_entity
   end
 
@@ -404,6 +536,13 @@ class MatchPaymentsController < ApplicationController
 
   def create_match_payment_notification
     NotificationEvents.payment_requested(
+      match_payment: @match_payment,
+      actor: current_user
+    )
+  end
+
+  def create_cash_paid_notification
+    NotificationEvents.payment_marked_paid_manually(
       match_payment: @match_payment,
       actor: current_user
     )

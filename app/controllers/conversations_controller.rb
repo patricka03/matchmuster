@@ -108,12 +108,13 @@ class ConversationsController < ApplicationController
       users
         .order(:first_name, :last_name, :email)
         .limit(50)
+        .to_a
 
     memberships =
       @team
         .team_memberships
         .where(
-          user_id: users.select(:id),
+          user_id: users.map(&:id),
           status: "approved"
         )
         .index_by(&:user_id)

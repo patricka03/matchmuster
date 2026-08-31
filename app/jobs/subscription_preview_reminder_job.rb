@@ -52,44 +52,26 @@ class SubscriptionPreviewReminderJob <
           days_remaining
       )
 
-    notification =
-      Notification.create_once!(
-        user: owner,
-
-        deduplication_key:
-          deduplication_key(
-            team: team,
-            expected_ends_at:
-              expected_ends_at,
-            kind: kind,
-            days_remaining:
-              days_remaining
-          ),
-
-        team: team,
-
-        title: title,
-        message: message,
-
-        notification_type:
-          "subscription_preview_reminder"
-      )
-
-    return unless
-      notification
-        .previously_new_record?
-
-    FirebasePushService.to_user(
+    Notification.create_once!(
       user: owner,
-      title: title,
-      body: message,
-      data: {
-        type:
-          "subscription_preview_reminder",
 
-        team_id:
-          team.id
-      }
+      deduplication_key:
+        deduplication_key(
+          team: team,
+          expected_ends_at:
+            expected_ends_at,
+          kind: kind,
+          days_remaining:
+            days_remaining
+        ),
+
+      team: team,
+
+      title: title,
+      message: message,
+
+      notification_type:
+        "subscription_preview_reminder"
     )
   end
 

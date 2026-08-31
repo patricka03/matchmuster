@@ -9,10 +9,10 @@ class ConversationsController < ApplicationController
 
   def index
     conversations =
-      @team
-        .conversations
+      Conversation
         .joins(:conversation_participants)
         .where(
+          team_id: @team.id,
           conversation_participants: {
             user_id: current_user.id
           }
@@ -21,7 +21,12 @@ class ConversationsController < ApplicationController
           :participants,
           :conversation_participants
         )
-        .order(updated_at: :desc)
+        .order(
+          conversations: {
+            updated_at: :desc
+          }
+        )
+        .distinct
         .limit(100)
 
     payload =
@@ -165,6 +170,19 @@ class ConversationsController < ApplicationController
     render json: {
       error: "Team member not found."
     }, status: :not_found
+  rescue ActiveRecord::RecordInvalid => error
+    Rails.logger.error(
+      "Unable to create direct conversation for " \
+      "team #{@team.id}, user #{current_user.id}: " \
+      "#{error.record.errors.full_messages.to_sentence}"
+    )
+
+    render json: {
+      error:
+        "The conversation could not be created. Please try again.",
+      errors:
+        error.record.errors.full_messages
+    }, status: :unprocessable_entity
   end
 
   def read

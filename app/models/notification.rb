@@ -76,6 +76,7 @@ training_started
     match_rating_result
 
     manager_status_updated
+    account_welcome
     app_update
 
     subscription_preview_reminder
@@ -136,6 +137,8 @@ training_started
   scope :kept,
         -> { where.not(kept_at: nil) }
 
+  after_create_commit :deliver_native_push
+
   def self.create_once!(
     user:,
     deduplication_key:,
@@ -175,5 +178,38 @@ training_started
     end
 
     manager_ids.count
+  end
+
+  private
+
+  def deliver_native_push
+    FirebasePushService.to_user(
+      user: user,
+      title: title,
+      body: message,
+      data: native_push_data
+    )
+  rescue StandardError => error
+    Rails.logger.error(
+      "Native push delivery failed for " \
+      "Notification #{id}: " \
+      "#{error.class}: #{error.message}"
+    )
+
+    0
+  end
+
+  def native_push_data
+    {
+      notification_id: id,
+      notification_type: notification_type,
+      team_id: team_id,
+      match_id: match_id,
+      post_id: post_id,
+      match_payment_id: match_payment_id,
+      featured_user_id: featured_user_id,
+      training_id: training_id,
+      conversation_id: conversation_id
+    }
   end
 end

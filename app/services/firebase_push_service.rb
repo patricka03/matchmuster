@@ -112,6 +112,16 @@ class FirebasePushService
               notification: {
                 channel_id: "matchmuster_alerts"
               }
+            },
+            apns: {
+              headers: {
+                "apns-priority": "10"
+              },
+              payload: {
+                aps: {
+                  sound: "default"
+                }
+              }
             }
           }
         }.to_json

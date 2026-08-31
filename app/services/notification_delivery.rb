@@ -6,11 +6,6 @@ class NotificationDelivery
           notification_attributes(attributes)
         )
 
-      deliver_native_push(
-        user: user,
-        notification: notification
-      )
-
       notification
     end
 
@@ -84,11 +79,6 @@ def to_user_once(
           deduplication_key
       )
     )
-
-  deliver_native_push(
-    user: user,
-    notification: notification
-  )
 
   notification
 rescue ActiveRecord::RecordNotUnique
@@ -222,62 +212,7 @@ end
         end
       end
 
-      deliveries.each do |recipient, notification|
-        deliver_native_push(
-          user: recipient,
-          notification: notification
-        )
-      end
-
       deliveries.length
-    end
-
-    def deliver_native_push(user:, notification:)
-      FirebasePushService.to_user(
-        user: user,
-        title: notification.title,
-        body: notification.message,
-        data: push_data(notification)
-      )
-    rescue StandardError => error
-      Rails.logger.error(
-        "Native push delivery failed for " \
-        "Notification #{notification.id}: " \
-        "#{error.class}: #{error.message}"
-      )
-
-      0
-    end
-
-    def push_data(notification)
-      {
-        notification_id:
-          notification.id,
-
-        notification_type:
-          notification.notification_type,
-
-        team_id:
-          notification.team_id,
-
-        match_id:
-          notification.match_id,
-
-        post_id:
-          notification.post_id,
-
-        match_payment_id:
-          notification.match_payment_id,
-
-        featured_user_id:
-          notification.featured_user_id,
-
-        training_id:
-          notification.training_id,
-
-        conversation_id:
-          notification.conversation_id
-      }
     end
 
     def notification_attributes(attributes)

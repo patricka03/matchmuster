@@ -42,6 +42,18 @@ class AvailabilitiesController < ApplicationController
         &:user_id
       )
 
+    suspension_by_user_id =
+      @team
+        .disciplinary_records
+        .active_suspensions
+        .where(
+          player_id: approved_memberships.map(&:user_id)
+        )
+        .order(created_at: :desc)
+        .each_with_object({}) do |record, result|
+          result[record.player_id] ||= record
+        end
+
     players =
       approved_memberships.map do |membership|
         user = membership.user
@@ -50,6 +62,8 @@ class AvailabilitiesController < ApplicationController
           availability_by_user_id[
             user.id
           ]
+
+        suspension = suspension_by_user_id[user.id]
 
         {
           id: user.id,
@@ -65,7 +79,16 @@ class AvailabilitiesController < ApplicationController
 
           status:
             availability&.status ||
-            "pending"
+            "pending",
+
+          active_suspension:
+            suspension ? {
+              disciplinary_record_id: suspension.id,
+              matches_remaining:
+                suspension.suspension_matches_remaining,
+              card_type: suspension.card_type,
+              reason: suspension.reason
+            } : nil
         }
       end
 

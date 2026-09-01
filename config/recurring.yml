@@ -15,6 +15,11 @@ production:
     queue: default
     schedule: every hour at minute 25
 
+  generate_recurring_team_payments:
+    class: GenerateRecurringTeamPaymentsJob
+    queue: default
+    schedule: every day at 00:40
+
   schedule_team_subscription_reconciliation:
     class: ScheduleTeamSubscriptionReconciliationJob
     queue: default

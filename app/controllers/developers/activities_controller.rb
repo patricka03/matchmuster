@@ -98,6 +98,8 @@ module Developers
             details: {
               amount_pence: payment.amount_pence,
               match_id: payment.match_id,
+              team_id: payment.team_id,
+              payment_type: payment.payment_type,
               status: payment.status
             },
             occurred_at: payment.updated_at

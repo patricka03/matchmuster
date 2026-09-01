@@ -240,6 +240,14 @@ class SquadSelectionsController < ApplicationController
   end
 
   def squad_selection_json(selection)
+    suspension =
+      @team
+        .disciplinary_records
+        .active_suspensions
+        .where(player_id: selection.user_id)
+        .order(created_at: :desc)
+        .first
+
     {
       id: selection.id,
       match_id: selection.match_id,
@@ -256,6 +264,14 @@ class SquadSelectionsController < ApplicationController
         first_name: selection.user.first_name,
         last_name: selection.user.last_name,
         email: selection.user.email,
+        active_suspension:
+          suspension ? {
+            disciplinary_record_id: suspension.id,
+            matches_remaining:
+              suspension.suspension_matches_remaining,
+            card_type: suspension.card_type,
+            reason: suspension.reason
+          } : nil,
         avatar_url:
           selection.user.avatar.attached? ?
             url_for(selection.user.avatar) :

@@ -29,6 +29,17 @@ class User < ApplicationRecord
   has_many :sent_notifications, class_name: "Notification", foreign_key: :actor_id, inverse_of: :actor, dependent: :nullify
   has_many :featured_notifications, class_name: "Notification", foreign_key: :featured_user_id, inverse_of: :featured_user, dependent: :nullify
   has_many :match_payments, dependent: :destroy
+  has_many :requested_match_payments,
+           class_name: "MatchPayment",
+           foreign_key: :requested_by_id,
+           dependent: :nullify
+  has_many :disciplinary_records,
+           foreign_key: :player_id,
+           dependent: :destroy
+  has_many :recorded_disciplinary_records,
+           class_name: "DisciplinaryRecord",
+           foreign_key: :recorded_by_id,
+           dependent: :nullify
   has_many :availabilities, dependent: :destroy
 
   has_many :player_fitness_statuses, dependent: :destroy
@@ -80,7 +91,7 @@ class User < ApplicationRecord
             inclusion: { in: %w[pending approved rejected] },
             if: :manager?
 
-  after_create_commit :create_initial_manager_status_notification, if: :manager?
+  after_create_commit :create_initial_account_notification
   after_update_commit :create_manager_status_notification,
                       if: :saved_change_to_manager_verification_status?
   after_update_commit :send_manager_approval_email,
@@ -125,12 +136,23 @@ class User < ApplicationRecord
     self.manager_verification_status = "pending" if manager?
   end
 
-  def create_initial_manager_status_notification
-    notifications.create!(
-      title: "Manager Application Received",
-      message: "Your manager application is pending review. We will notify you when its status changes.",
-      notification_type: "manager_status_updated"
-    )
+  def create_initial_account_notification
+    attributes =
+      if manager?
+        {
+          title: "Welcome to MatchMuster",
+          message: "Your manager account has been created and is awaiting approval. We’ll notify you as soon as it’s ready.",
+          notification_type: "manager_status_updated"
+        }
+      else
+        {
+          title: "Welcome to MatchMuster",
+          message: "Your player account is ready. Join your team using the invite code provided by your manager.",
+          notification_type: "account_welcome"
+        }
+      end
+
+    notifications.create!(attributes)
   end
 
   def create_manager_status_notification

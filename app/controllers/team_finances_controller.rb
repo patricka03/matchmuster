@@ -2,9 +2,21 @@ class TeamFinancesController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team
   before_action :authorize_manager!
-  before_action :require_club_finance_plus!
+  before_action :require_club_finance_plus!, only: :analytics
 
   def show
+    render json: finance_payload.merge(
+      plus_enabled: PlusAccess.allowed?(team: @team, feature: :club_finance)
+    ), status: :ok
+  end
+
+  def analytics
+    render json: finance_payload.merge(plus_enabled: true), status: :ok
+  end
+
+  private
+
+  def finance_payload
     manual_entries =
       @team
         .team_finance_entries
@@ -18,6 +30,7 @@ class TeamFinancesController < ApplicationController
       MatchPayment
         .joins(:match)
         .includes(:match)
+        .match_subs
         .where(
           matches: {
             team_id: @team.id
@@ -27,7 +40,9 @@ class TeamFinancesController < ApplicationController
         .to_a
 
     match_sub_income =
-      paid_match_subs.sum(&:amount_pence)
+      paid_match_subs.sum do |payment|
+        payment.amount_paid_pence - payment.refunded_amount_pence
+      end
 
     manual_income =
       manual_entries.income.sum(:amount_pence)
@@ -38,7 +53,7 @@ class TeamFinancesController < ApplicationController
     total_income = match_sub_income + manual_income
     balance = total_income - expenses
 
-    render json: {
+    {
       summary: {
         match_sub_income_pence: match_sub_income,
         manual_income_pence: manual_income,
@@ -52,10 +67,8 @@ class TeamFinancesController < ApplicationController
           |entry| finance_entry_json(entry)
         },
       match_subs: match_sub_rows(paid_match_subs)
-    }, status: :ok
+    }
   end
-
-  private
 
   def set_team
     @team = Team.find(params[:team_id])
@@ -123,7 +136,9 @@ class TeamFinancesController < ApplicationController
           match_id: match.id,
           opponent: match.opponent,
           kickoff_time: match.kickoff_time,
-          amount_pence: group.sum(&:amount_pence),
+          amount_pence: group.sum do |payment|
+            payment.amount_paid_pence - payment.refunded_amount_pence
+          end,
           payments_received: group.length,
           occurred_on:
             (

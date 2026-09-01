@@ -50,6 +50,9 @@ class MatchPaymentsController < ApplicationController
     @match_payment = @match.match_payments.new(
       create_payment_params
     )
+    @match_payment.team = @team
+    @match_payment.requested_by = current_user
+    @match_payment.payment_type = "match_sub"
 
     if @match_payment.save
       create_match_payment_notification
@@ -71,7 +74,8 @@ class MatchPaymentsController < ApplicationController
 
     @match.squad_selections.includes(:user).each do |selection|
       match_payment = @match.match_payments.find_or_initialize_by(
-        user: selection.user
+        user: selection.user,
+        payment_type: "match_sub"
       )
 
       if match_payment.persisted?
@@ -80,6 +84,8 @@ class MatchPaymentsController < ApplicationController
       end
 
       match_payment.amount_pence = amount_pence
+      match_payment.team = @team
+      match_payment.requested_by = current_user
 
       if match_payment.save
         @match_payment = match_payment
@@ -108,6 +114,12 @@ class MatchPaymentsController < ApplicationController
         waived
         pending
       ]
+
+    if %w[paid waived].include?(requested_status) &&
+       PlusAccess.locked?(team: @team, feature: :team_payments)
+      return render json: PlusAccess.denial_payload(feature: :team_payments),
+                    status: :forbidden
+    end
 
     if requested_status.present? &&
         !allowed_statuses.include?(requested_status)
@@ -236,6 +248,12 @@ class MatchPaymentsController < ApplicationController
         attributes[:status] =
           "paid"
 
+        attributes[:amount_paid_pence] =
+          parsed_amount || @match_payment.amount_pence
+
+        attributes[:payment_method] =
+          "cash"
+
         attributes[:paid_at] =
           Time.current
 
@@ -247,6 +265,9 @@ class MatchPaymentsController < ApplicationController
         attributes[:status] =
           "waived"
 
+        attributes[:waived_at] =
+          Time.current
+
         attributes[:paid_at] =
           nil
 
@@ -257,6 +278,15 @@ class MatchPaymentsController < ApplicationController
       when "pending"
         attributes[:status] =
           "pending"
+
+        attributes[:amount_paid_pence] =
+          0
+
+        attributes[:payment_method] =
+          nil
+
+        attributes[:waived_at] =
+          nil
 
         attributes[:paid_at] =
           nil
@@ -319,7 +349,7 @@ class MatchPaymentsController < ApplicationController
   end
 
   def summary
-    payments = @match.match_payments
+    payments = @match.match_payments.match_subs
 
     render json: {
       total_requested_pence: payments.sum(:amount_pence),
@@ -397,9 +427,9 @@ class MatchPaymentsController < ApplicationController
             {
               price_data: {
                 currency: "gbp",
-                unit_amount: @match_payment.amount_pence,
+                unit_amount: @match_payment.amount_outstanding_pence,
                 product_data: {
-                  name: "Match payment"
+                  name: @match_payment.title
                 }
               },
               quantity: 1

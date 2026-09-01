@@ -254,11 +254,11 @@ class NotificationEvents
       NotificationDelivery.to_user(
         user: player,
         actor: actor,
-        team: match_payment.match.team,
+        team: match_payment.team,
         match: match_payment.match,
         match_payment: match_payment,
-        title: "Match payment requested",
-        message: "You have been requested to pay #{formatted_amount(match_payment.amount_pence)} for the upcoming match.",
+        title: "#{match_payment.type_label} requested",
+        message: payment_request_message(match_payment),
         notification_type: "match_payment_requested"
       )
     end
@@ -267,11 +267,11 @@ class NotificationEvents
       NotificationDelivery.to_user(
         user: match_payment.user,
         actor: actor,
-        team: match_payment.match.team,
+        team: match_payment.team,
         match: match_payment.match,
         match_payment: match_payment,
-        title: "Match payment updated",
-        message: "Your match payment is now #{formatted_amount(match_payment.amount_pence)}.",
+        title: "Payment request updated",
+        message: "Your #{match_payment.title} request is now #{formatted_amount(match_payment.amount_pence)}.",
         notification_type: "match_payment_amount_changed"
       )
     end
@@ -280,11 +280,11 @@ class NotificationEvents
       NotificationDelivery.to_user(
         user: match_payment.user,
         actor: actor,
-        team: match_payment.match.team,
+        team: match_payment.team,
         match: match_payment.match,
         match_payment: match_payment,
-        title: "Match payment waived",
-        message: "Your match payment of #{formatted_amount(match_payment.amount_pence)} has been waived. You do not need to pay.",
+        title: "Payment waived",
+        message: "Your #{match_payment.title} payment of #{formatted_amount(match_payment.amount_pence)} has been waived. You do not need to pay.",
         notification_type: "match_payment_waived"
       )
     end
@@ -295,18 +295,18 @@ class NotificationEvents
     )
       amount =
         formatted_amount(
-          match_payment.amount_pence
+          match_payment.amount_paid_pence
         )
 
       NotificationDelivery.to_user(
         user: match_payment.user,
         actor: actor,
-        team: match_payment.match.team,
+        team: match_payment.team,
         match: match_payment.match,
         match_payment: match_payment,
-        title: "Match Sub paid",
+        title: "Payment recorded",
         message:
-          "Your Match Sub of #{amount} has been marked as paid in cash.",
+          "#{amount} has been recorded towards #{match_payment.title}.",
         notification_type:
           "match_payment_paid"
       )
@@ -323,7 +323,7 @@ class NotificationEvents
 
       NotificationDelivery.to_user(
         user: player,
-        team: match_payment.match.team,
+        team: match_payment.team,
         match: match_payment.match,
         match_payment: match_payment,
         title: "Payment received",
@@ -332,13 +332,67 @@ class NotificationEvents
       )
 
       NotificationDelivery.to_managers(
-        team: match_payment.match.team,
+        team: match_payment.team,
         actor: player,
         match: match_payment.match,
         match_payment: match_payment,
-        title: "Match payment received",
-        message: "#{display_name(player)} paid #{amount}.",
+        title: "Team payment received",
+        message: "#{display_name(player)} paid #{amount} for #{match_payment.title}.",
         notification_type: "match_payment_paid"
+      )
+    end
+
+    def payment_cash_confirmation_requested(match_payment:, actor:)
+      NotificationDelivery.to_managers(
+        team: match_payment.team,
+        actor: actor,
+        match: match_payment.match,
+        match_payment: match_payment,
+        title: "Cash payment awaiting confirmation",
+        message: "#{display_name(actor)} says #{match_payment.title} was paid in cash.",
+        notification_type: "payment_cash_confirmation_requested"
+      )
+    end
+
+    def payment_cancelled(match_payment:, actor:)
+      NotificationDelivery.to_user(
+        user: match_payment.user,
+        actor: actor,
+        team: match_payment.team,
+        match: match_payment.match,
+        match_payment: match_payment,
+        title: "Payment request cancelled",
+        message: "Your #{match_payment.title} request has been cancelled.",
+        notification_type: "match_payment_cancelled"
+      )
+    end
+
+    def payment_refunded(match_payment:, actor:, amount_pence:)
+      NotificationDelivery.to_user(
+        user: match_payment.user,
+        actor: actor,
+        team: match_payment.team,
+        match: match_payment.match,
+        match_payment: match_payment,
+        title: "Payment refunded",
+        message: "#{formatted_amount(amount_pence)} was refunded for #{match_payment.title}.",
+        notification_type: "match_payment_refunded"
+      )
+    end
+
+    def disciplinary_recorded(disciplinary_record:, actor:)
+      suspension = disciplinary_record.suspension_matches_remaining
+      suspension_text =
+        suspension.positive? ? " A #{suspension}-match suspension was recorded." : ""
+
+      NotificationDelivery.to_user(
+        user: disciplinary_record.player,
+        actor: actor,
+        team: disciplinary_record.team,
+        match: disciplinary_record.match,
+        title: "Disciplinary record added",
+        message: "A #{disciplinary_record.card_type.tr('_', ' ')} was recorded for the match against #{disciplinary_record.match.opponent}.#{suspension_text}",
+        notification_type: "disciplinary_recorded"
       )
     end
 
@@ -410,6 +464,19 @@ class NotificationEvents
     end
 
     private
+
+    def payment_request_message(match_payment)
+      message =
+        "You have been requested to pay " \
+        "#{formatted_amount(match_payment.amount_pence)} " \
+        "for #{match_payment.title}."
+
+      if match_payment.due_at.present?
+        message += " Due #{match_payment.due_at.to_date.to_fs(:long)}."
+      end
+
+      message
+    end
 
     def notify_players_for_match(match, **attributes)
       NotificationDelivery.to_players(

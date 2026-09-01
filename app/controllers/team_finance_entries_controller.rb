@@ -2,7 +2,6 @@ class TeamFinanceEntriesController < ApplicationController
   before_action :authenticate_user!
   before_action :set_team
   before_action :authorize_manager!
-  before_action :require_club_finance_plus!
   before_action :set_entry,
                 only: %i[update destroy]
 
@@ -66,13 +65,6 @@ class TeamFinanceEntriesController < ApplicationController
     render json: {
       error: "Only an approved team manager can manage club finances."
     }, status: :forbidden
-  end
-
-  def require_club_finance_plus!
-    require_plus!(
-      team: @team,
-      feature: :club_finance
-    )
   end
 
   def entry_params

@@ -87,7 +87,7 @@ class StripeWebhooksController < ApplicationController
       return if match_payment.status == "paid"
 
       expected_account_id =
-        match_payment.match.team.stripe_account_id
+        match_payment.team.stripe_account_id
 
       unless expected_account_id.present? &&
           event.account == expected_account_id
@@ -106,7 +106,7 @@ class StripeWebhooksController < ApplicationController
       end
 
       unless checkout_session.amount_total ==
-          match_payment.amount_pence
+          match_payment.amount_outstanding_pence
         return ignore_event(
           event,
           "Checkout amount does not match"
@@ -138,6 +138,10 @@ class StripeWebhooksController < ApplicationController
 
       match_payment.update!(
         status: "paid",
+        amount_paid_pence: match_payment.amount_pence,
+        payment_method:
+          match_payment.amount_paid_pence.to_i.zero? ?
+            "stripe" : "other",
         paid_at: Time.at(event.created).utc,
         stripe_checkout_session_id: checkout_session.id,
         stripe_payment_intent_id: payment_intent_id

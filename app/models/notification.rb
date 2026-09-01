@@ -16,6 +16,8 @@ class Notification < ApplicationRecord
       match_payment_requested
       match_payment_amount_changed
       match_payment_reminder
+      payment_cash_confirmation_requested
+      disciplinary_recorded
       join_request_received
       team_join_requested
       motm_voting_open
@@ -54,6 +56,10 @@ training_started
     match_payment_waived
     match_payment_amount_changed
     match_payment_reminder
+    payment_cash_confirmation_requested
+    match_payment_cancelled
+    match_payment_refunded
+    disciplinary_recorded
 
     join_request_received
     membership_approved
@@ -207,6 +213,7 @@ training_started
       match_id: match_id,
       post_id: post_id,
       match_payment_id: match_payment_id,
+      payment_type: match_payment&.payment_type,
       featured_user_id: featured_user_id,
       training_id: training_id,
       conversation_id: conversation_id

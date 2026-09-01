@@ -35,6 +35,15 @@ class PlusAccess
     payment_analytics:
       "Payment analytics",
 
+    team_payments:
+      "Team payments and fines",
+
+    saved_payment_templates:
+      "Saved payment templates",
+
+    recurring_payments:
+      "Recurring team payments",
+
     rotation_minutes:
       "Minutes and rotation",
 

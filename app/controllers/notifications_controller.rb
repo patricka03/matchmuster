@@ -233,6 +233,12 @@ class NotificationsController < ApplicationController
       match_id: match_payment.match_id,
       user_id: match_payment.user_id,
       amount_pence: match_payment.amount_pence,
+      amount_paid_pence: match_payment.amount_paid_pence,
+      amount_outstanding_pence: match_payment.amount_outstanding_pence,
+      payment_type: match_payment.payment_type,
+      title: match_payment.title,
+      due_at: match_payment.due_at,
+      overdue: match_payment.overdue?,
       status: match_payment.status
     }
   end

@@ -165,12 +165,14 @@ Rails.application.routes.draw do
             "team_awards#show"
 
       # ========================================
-      # CLUB FINANCE — PLUS
+      # CLUB FINANCE — FREE LEDGER + PLUS ANALYTICS
       # ========================================
 
       resource :finance,
                only: %i[show],
-               controller: "team_finances"
+               controller: "team_finances" do
+        get :analytics
+      end
 
       get "squad_analytics",
           to: "squad_analytics#show",
@@ -182,6 +184,38 @@ Rails.application.routes.draw do
       resources :finance_entries,
                 only: %i[create update destroy],
                 controller: "team_finance_entries"
+
+      # ========================================
+      # TEAM PAYMENTS
+      # ========================================
+
+      resources :payments,
+                only: %i[index show create update destroy],
+                controller: "team_payments" do
+        collection do
+          get :context
+          get :summary
+        end
+
+        member do
+          post :checkout
+          post :request_cash_confirmation
+          post :record_payment
+          post :waive
+          post :remind
+          post :refund
+          post :add_to_finance
+          post :mark_league_settled
+          post :ask_manager
+          get :receipt
+        end
+      end
+
+      resources :payment_templates,
+                only: %i[index create update destroy]
+
+      resources :disciplinary_records,
+                only: %i[index create update destroy]
 
       # ========================================
       # DIRECT MESSAGES

@@ -40,6 +40,9 @@ class Match < ApplicationRecord
   has_many :match_payments,
            dependent: :destroy
 
+  has_many :disciplinary_records,
+           dependent: :destroy
+
   has_many :match_late_statuses,
            dependent: :destroy
 

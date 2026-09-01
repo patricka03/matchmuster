@@ -13,24 +13,30 @@ class AutomaticMatchPaymentReminderJob <
       MatchPayment
         .includes(
           :user,
-          match: :team
+          :team,
+          :match
         )
         .find_by(
           id: match_payment_id
         )
 
     return unless match_payment
-    return unless match_payment.status == "pending"
+    return unless match_payment.outstanding?
 
-    match =
-      match_payment.match
+    match = match_payment.match
+    return if match&.cancelled_at.present?
 
-    return if match.cancelled_at.present?
-    return if match.kickoff_time <= Time.current
+    due_at = match_payment.due_at || match&.kickoff_time
+    return unless due_at
+    if match_payment.payment_type == "match_sub"
+      return unless due_at > Time.current
+    else
+      return if due_at < 30.days.ago
+    end
 
     return unless
       PlusAccess.allowed?(
-        team: match.team,
+        team: match_payment.team,
         feature:
           :automatic_payment_reminders
       )
@@ -42,7 +48,7 @@ class AutomaticMatchPaymentReminderJob <
         "match_payment:#{match_payment.id}:" \
         "automatic_reminder",
 
-      team: match.team,
+      team: match_payment.team,
       match: match,
       match_payment: match_payment,
 
@@ -69,9 +75,12 @@ class AutomaticMatchPaymentReminderJob <
           100.0
       )
 
-    "Your #{amount} match payment for the " \
-      "fixture against " \
-      "#{match_payment.match.opponent} " \
-      "is still outstanding."
+    if match_payment.payment_type == "match_sub" && match_payment.match
+      return "Your #{amount} match payment for the " \
+             "fixture against #{match_payment.match.opponent} " \
+             "is still outstanding."
+    end
+
+    "Your #{amount} payment for #{match_payment.title} is still outstanding."
   end
 end

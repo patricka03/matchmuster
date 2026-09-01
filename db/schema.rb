@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_190200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -121,6 +121,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
     t.index ["reset_password_token"], name: "index_developers_on_reset_password_token", unique: true
   end
 
+  create_table "disciplinary_records", force: :cascade do |t|
+    t.string "appeal_status", default: "not_applicable", null: false
+    t.string "card_type", null: false
+    t.datetime "created_at", null: false
+    t.string "evidence_url"
+    t.integer "incident_minute"
+    t.bigint "match_id", null: false
+    t.bigint "match_payment_id"
+    t.text "notes"
+    t.bigint "player_id", null: false
+    t.string "reason"
+    t.bigint "recorded_by_id"
+    t.integer "suspension_matches", default: 0, null: false
+    t.integer "suspension_matches_remaining", default: 0, null: false
+    t.bigint "team_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["match_id"], name: "index_disciplinary_records_on_match_id"
+    t.index ["match_payment_id"], name: "index_disciplinary_records_on_match_payment_id"
+    t.index ["player_id"], name: "index_disciplinary_records_on_player_id"
+    t.index ["recorded_by_id"], name: "index_disciplinary_records_on_recorded_by_id"
+    t.index ["team_id", "player_id", "created_at"], name: "index_discipline_on_team_player_and_created"
+    t.index ["team_id"], name: "index_disciplinary_records_on_team_id"
+    t.check_constraint "incident_minute IS NULL OR incident_minute >= 1 AND incident_minute <= 130", name: "disciplinary_records_minute_range"
+    t.check_constraint "suspension_matches >= 0 AND suspension_matches_remaining >= 0", name: "disciplinary_records_suspension_nonnegative"
+  end
+
   create_table "legal_acceptances", force: :cascade do |t|
     t.datetime "accepted_at", null: false
     t.datetime "created_at", null: false
@@ -160,20 +186,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
   end
 
   create_table "match_payments", force: :cascade do |t|
+    t.integer "amount_paid_pence", default: 0, null: false
     t.integer "amount_pence", null: false
+    t.string "batch_key"
+    t.datetime "cancelled_at"
+    t.datetime "cash_confirmation_requested_at"
     t.datetime "created_at", null: false
-    t.bigint "match_id", null: false
+    t.text "description"
+    t.datetime "due_at"
+    t.datetime "league_settled_at"
+    t.bigint "match_id"
     t.datetime "paid_at"
+    t.string "payment_method"
+    t.string "payment_type", default: "match_sub", null: false
+    t.integer "refunded_amount_pence", default: 0, null: false
+    t.datetime "refunded_at"
+    t.bigint "requested_by_id"
     t.string "status", default: "pending", null: false
     t.string "stripe_checkout_session_id"
     t.string "stripe_payment_intent_id"
+    t.bigint "team_id", null: false
+    t.string "title"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["match_id", "user_id"], name: "index_match_payments_on_match_id_and_user_id", unique: true
+    t.datetime "viewed_at"
+    t.datetime "waived_at"
+    t.index ["batch_key"], name: "index_match_payments_on_batch_key", unique: true, where: "(batch_key IS NOT NULL)"
+    t.index ["match_id", "user_id", "payment_type"], name: "index_match_payments_on_match_user_and_type"
+    t.index ["match_id", "user_id"], name: "index_match_payments_unique_match_sub", unique: true, where: "((payment_type)::text = 'match_sub'::text)"
     t.index ["match_id"], name: "index_match_payments_on_match_id"
+    t.index ["requested_by_id"], name: "index_match_payments_on_requested_by_id"
     t.index ["stripe_checkout_session_id"], name: "index_match_payments_on_stripe_checkout_session_id", unique: true
     t.index ["stripe_payment_intent_id"], name: "index_match_payments_on_stripe_payment_intent_id", unique: true
+    t.index ["team_id", "status", "due_at"], name: "index_team_payments_on_status_and_due_at"
+    t.index ["team_id"], name: "index_match_payments_on_team_id"
     t.index ["user_id"], name: "index_match_payments_on_user_id"
+    t.check_constraint "amount_paid_pence >= 0 AND amount_paid_pence <= amount_pence", name: "match_payments_amount_paid_range"
+    t.check_constraint "refunded_amount_pence >= 0 AND refunded_amount_pence <= amount_paid_pence", name: "match_payments_refunded_amount_range"
   end
 
   create_table "match_player_stats", force: :cascade do |t|
@@ -291,6 +340,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
     t.index ["training_id"], name: "index_notifications_on_training_id"
     t.index ["user_id", "deduplication_key"], name: "index_notifications_on_user_and_deduplication_key", unique: true, where: "(deduplication_key IS NOT NULL)"
     t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
+  create_table "payment_templates", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.integer "amount_pence", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.integer "default_due_days", default: 7, null: false
+    t.text "description"
+    t.string "name", null: false
+    t.date "next_run_on"
+    t.string "payment_type", null: false
+    t.string "recurrence", default: "none", null: false
+    t.bigint "team_id", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active", "next_run_on"], name: "index_payment_templates_on_active_and_next_run_on"
+    t.index ["created_by_id"], name: "index_payment_templates_on_created_by_id"
+    t.index ["team_id", "name"], name: "index_payment_templates_on_team_id_and_name", unique: true
+    t.index ["team_id"], name: "index_payment_templates_on_team_id"
+    t.check_constraint "amount_pence > 0", name: "payment_templates_amount_positive"
+    t.check_constraint "default_due_days >= 0 AND default_due_days <= 365", name: "payment_templates_due_days_range"
   end
 
   create_table "player_fitness_statuses", force: :cascade do |t|
@@ -685,13 +756,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
   add_foreign_key "conversations", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "developer_account_actions", "developers"
   add_foreign_key "developer_account_actions", "users", column: "target_user_id"
+  add_foreign_key "disciplinary_records", "match_payments", on_delete: :nullify
+  add_foreign_key "disciplinary_records", "matches", on_delete: :cascade
+  add_foreign_key "disciplinary_records", "teams", on_delete: :cascade
+  add_foreign_key "disciplinary_records", "users", column: "player_id", on_delete: :cascade
+  add_foreign_key "disciplinary_records", "users", column: "recorded_by_id", on_delete: :nullify
   add_foreign_key "legal_acceptances", "users"
   add_foreign_key "match_awards", "matches"
   add_foreign_key "match_awards", "users"
   add_foreign_key "match_late_statuses", "matches"
   add_foreign_key "match_late_statuses", "users"
   add_foreign_key "match_payments", "matches"
+  add_foreign_key "match_payments", "teams", on_delete: :cascade
   add_foreign_key "match_payments", "users"
+  add_foreign_key "match_payments", "users", column: "requested_by_id", on_delete: :nullify
   add_foreign_key "match_player_stats", "matches"
   add_foreign_key "match_player_stats", "users", column: "player_id"
   add_foreign_key "match_ratings", "matches"
@@ -712,6 +790,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_150000) do
   add_foreign_key "notifications", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "notifications", "users", column: "featured_user_id"
+  add_foreign_key "payment_templates", "teams", on_delete: :cascade
+  add_foreign_key "payment_templates", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "player_fitness_statuses", "teams"
   add_foreign_key "player_fitness_statuses", "users"
   add_foreign_key "player_fitness_statuses", "users", column: "updated_by_id", on_delete: :nullify

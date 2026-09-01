@@ -73,7 +73,7 @@ class Developers::ActivityController < Developers::BaseController
 
   def payment_activities
     MatchPayment
-      .includes(:user, match: :team)
+      .includes(:user, :team, :match)
       .where(status: "paid")
       .order(updated_at: :desc)
       .limit(10)
@@ -86,9 +86,9 @@ class Developers::ActivityController < Developers::BaseController
         {
           id: "payment-#{payment.id}",
           type: "payment_paid",
-          title: "Match payment completed",
+          title: "Team payment completed",
           description:
-            "#{player_name} paid for #{payment.match.team.name}.",
+            "#{player_name} paid #{payment.title} for #{payment.team.name}.",
           amount_pence: payment.amount_pence,
           occurred_at: payment.updated_at
         }

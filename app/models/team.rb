@@ -28,6 +28,15 @@ class Team < ApplicationRecord
   has_many :team_finance_entries,
            dependent: :destroy
 
+  has_many :match_payments,
+           dependent: :destroy
+
+  has_many :payment_templates,
+           dependent: :destroy
+
+  has_many :disciplinary_records,
+           dependent: :destroy
+
   has_many :player_fitness_statuses,
            dependent: :destroy
 

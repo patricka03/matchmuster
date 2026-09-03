@@ -94,7 +94,7 @@ class Conversation < ApplicationRecord
       [first_user, second_user].each do |user|
         conversation
           .conversation_participants
-          .create_or_find_by!(
+          .find_or_create_by!(
             user: user
           )
       end

@@ -1,8 +1,5 @@
 class ReportsController < ApplicationController
-  REPORTABLE_CLASSES = {
-    "Post" => Post,
-    "MatchRating" => MatchRating
-  }.freeze
+  REPORTABLE_CLASSES = ReportTarget::CLASSES
 
   before_action :authenticate_user!
   before_action :load_report_target
@@ -129,21 +126,13 @@ class ReportsController < ApplicationController
         reportable_id
       )
 
-    @reported_user =
-      case @reportable
-      when Post
-        @reportable.user
-      when MatchRating
-        @reportable.rater
-      end
+    @reported_user = ReportTarget.author(@reportable)
   end
 
   def authorize_report_target!
     authorised =
       if @reportable
-        approved_member_of_team?(
-          reportable_team_id
-        )
+        ReportTarget.accessible_to?(@reportable, current_user)
       else
         shares_approved_team_with?(
           @reported_user

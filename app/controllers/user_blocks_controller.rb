@@ -52,6 +52,18 @@ class UserBlocksController < ApplicationController
     new_block =
       user_block.new_record?
 
+    if user_block_params[:reportable_type].present? || user_block_params[:reportable_id].present?
+      klass = ReportTarget::CLASSES[user_block_params[:reportable_type]]
+      content = klass&.find_by(id: user_block_params[:reportable_id])
+
+      unless content && ReportTarget.author(content) == blocked_user &&
+             ReportTarget.accessible_to?(content, current_user)
+        return render json: { error: "That content cannot be attached to this block." }, status: :forbidden
+      end
+
+      user_block.reported_content = content
+    end
+
     if user_block.save
       render json: {
         message:
@@ -120,7 +132,9 @@ class UserBlocksController < ApplicationController
     params
       .require(:user_block)
       .permit(
-        :blocked_user_id
+        :blocked_user_id,
+        :reportable_type,
+        :reportable_id
       )
   end
 

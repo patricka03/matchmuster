@@ -51,7 +51,7 @@ class ModerationService
 
     Report.transaction do
       case content
-      when Post
+      when Post, Message
         content.destroy!
 
       when MatchRating

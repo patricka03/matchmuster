@@ -22,6 +22,7 @@ class Report < ApplicationRecord
   REPORTABLE_TYPES = %w[
     Post
     MatchRating
+    Message
   ].freeze
 
   has_many :moderation_actions, dependent: :destroy
@@ -41,6 +42,10 @@ class Report < ApplicationRecord
   validate :report_target_present
   validate :cannot_report_self
 
+  before_validation :normalise_reason
+  before_validation :capture_content, on: :create
+  after_create_commit :notify_moderators
+
   scope :newest_first,
         -> { order(created_at: :desc) }
 
@@ -48,6 +53,36 @@ class Report < ApplicationRecord
         -> { where(status: %w[pending reviewing]) }
 
   private
+
+  def normalise_reason
+    # Accept values sent by older installed app builds as well.
+    self.reason = { "hate_speech" => "discrimination", "sexual_content" => "inappropriate_content" }.fetch(reason, reason)
+  end
+
+  def capture_content
+    snapshot = case reportable
+               when Post
+                 reportable.attributes.slice("id", "team_id", "title", "content", "post_type", "user_id")
+               when MatchRating
+                 reportable.attributes.slice("id", "match_id", "rater_id", "player_id", "rating", "comment")
+               when Message
+                 reportable.attributes.slice("id", "conversation_id", "sender_id", "body")
+               else
+                 {}
+               end
+    self.content_snapshot = (content_snapshot || {}).merge(snapshot).merge(
+      "type" => reportable_type || "User",
+      "reported_user_id" => reported_user_id,
+      "captured_at" => Time.current.iso8601
+    )
+  end
+
+  def notify_moderators
+    ModerationAlertJob.perform_later(id)
+  rescue StandardError => error
+    # The durable developer review queue remains available if enqueueing fails.
+    Rails.logger.error("Moderation alert enqueue failed for report #{id}: #{error.class}")
+  end
 
   def report_target_present
     return if reported_user.present? ||

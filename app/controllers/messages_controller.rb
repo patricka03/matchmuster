@@ -6,6 +6,7 @@ class MessagesController < ApplicationController
   before_action :authorize_team_member!
   before_action :set_conversation
   before_action :authorize_participant!
+  before_action :ensure_conversation_available!
   before_action :set_message,
                 only: %i[update destroy]
 
@@ -143,6 +144,14 @@ class MessagesController < ApplicationController
   def set_message
     @message =
       @conversation.messages.find(params[:id])
+  end
+
+  def ensure_conversation_available!
+    return unless @conversation.blocked_for?(current_user)
+
+    render json: {
+      error: "This conversation is not available.", code: "conversation_unavailable"
+    }, status: :forbidden
   end
 
   def approved_member?(user)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_190200) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_10_220000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -377,7 +377,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_190200) do
     t.index ["team_id"], name: "index_player_fitness_statuses_on_team_id"
     t.index ["updated_by_id"], name: "index_player_fitness_statuses_on_updated_by_id"
     t.index ["user_id"], name: "index_player_fitness_statuses_on_user_id"
-    t.check_constraint "status::text = ANY (ARRAY['fit'::character varying, 'doubtful'::character varying, 'injured'::character varying, 'recovering'::character varying]::text[])", name: "player_fitness_statuses_valid_status"
+    t.check_constraint "status::text = ANY (ARRAY['fit'::character varying::text, 'doubtful'::character varying::text, 'injured'::character varying::text, 'recovering'::character varying::text])", name: "player_fitness_statuses_valid_status"
   end
 
   create_table "post_reads", force: :cascade do |t|
@@ -415,6 +415,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_190200) do
   end
 
   create_table "reports", force: :cascade do |t|
+    t.jsonb "content_snapshot", default: {}, null: false
     t.datetime "created_at", null: false
     t.text "details"
     t.text "moderation_notes"

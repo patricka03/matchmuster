@@ -195,6 +195,7 @@ module Developers
         moderation_notes: report.moderation_notes,
         created_at: report.created_at,
         reviewed_at: report.reviewed_at,
+        content_snapshot: report.content_snapshot,
 
         reporter:
           user_json(
@@ -264,6 +265,15 @@ module Developers
           title: reportable.title,
           content: reportable.content,
           post_type: reportable.post_type
+        }
+
+      when Message
+        {
+          type: "Message",
+          id: reportable.id,
+          conversation_id: reportable.conversation_id,
+          sender_id: reportable.sender_id,
+          body: reportable.body
         }
 
       when MatchRating

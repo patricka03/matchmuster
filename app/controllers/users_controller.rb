@@ -55,11 +55,7 @@ class UsersController < ApplicationController
   # ========================================
 
   def destroy_account
-    unless current_user.valid_password?(params[:current_password].to_s)
-      return render json: {
-        errors: ["Current password is incorrect."]
-      }, status: :unprocessable_entity
-    end
+    deletion_identity = verify_deletion_identity!
 
     owned_teams =
       MultiTeamOwnerAccess
@@ -91,17 +87,27 @@ class UsersController < ApplicationController
 
     user = current_user
 
+    if deletion_identity&.provider == "apple"
+      AppleSignInRevoker.call(identity: deletion_identity, authorization_code: params[:authorization_code])
+    end
+
     User.transaction do
       # Remove active/team-specific personal data
       user.team_memberships.destroy_all
       user.notifications.destroy_all
+      user.push_devices.destroy_all
+      user.sent_notifications.where(notification_type: Notification::USER_CONTENT_TYPES).destroy_all
       user.post_reads.destroy_all
       user.availabilities.destroy_all
+      user.training_availabilities.destroy_all
+      user.availability_status_changes.destroy_all
+      user.player_fitness_statuses.destroy_all
       user.squad_selections.destroy_all
       user.posts.destroy_all
       user.match_late_statuses.destroy_all
       user.conversation_participants.destroy_all
       user.sent_messages.destroy_all
+      user.match_ratings_given.update_all(comment: nil)
       user.social_identities.destroy_all
 
       # Team finance entries are retained as club records.
@@ -145,6 +151,10 @@ class UsersController < ApplicationController
       message: "Your MatchMuster account has been deleted."
     }, status: :ok
 
+  rescue SocialIdentityVerifier::VerificationError => error
+    render json: { error: error.message }, status: :unprocessable_entity
+  rescue AppleSignInRevoker::Error => error
+    render json: { error: error.message }, status: :unprocessable_entity
   rescue ActiveRecord::RecordInvalid => error
     Rails.logger.error(
       "Account deletion failed for user #{current_user.id}: #{error.message}"
@@ -156,6 +166,26 @@ class UsersController < ApplicationController
   end
 
   private
+
+  def verify_deletion_identity!
+    apple_identity = current_user.social_identities.find_by(provider: "apple")
+    if params[:provider].present?
+      verified = SocialIdentityVerifier.call(provider: params[:provider], id_token: params[:id_token])
+      identity = current_user.social_identities.find_by(provider: verified[:provider], uid: verified[:uid])
+      unless identity && (!apple_identity || identity == apple_identity)
+        raise SocialIdentityVerifier::VerificationError, "Confirm with the sign-in account linked to this MatchMuster account."
+      end
+      return identity
+    end
+
+    if apple_identity
+      raise SocialIdentityVerifier::VerificationError, "Confirm with Apple to delete your account and revoke its Apple connection."
+    end
+    unless current_user.valid_password?(params[:current_password].to_s)
+      raise SocialIdentityVerifier::VerificationError, "Current password is incorrect."
+    end
+    nil
+  end
 
   # ========================================
   # SOLE MANAGER CHECK
@@ -189,6 +219,7 @@ class UsersController < ApplicationController
       last_name: user.last_name,
       email: user.email,
       account_type: user.account_type,
+      social_providers: user.social_identities.pluck(:provider),
       manager_verification_status: user.manager_verification_status,
       preferred_position:
         user.team_memberships.find_by(role: "player")&.preferred_position,

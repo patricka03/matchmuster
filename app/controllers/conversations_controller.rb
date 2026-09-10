@@ -6,10 +6,12 @@ class ConversationsController < ApplicationController
                 only: %i[show read destroy]
   before_action :authorize_participant!,
                 only: %i[show read destroy]
+  before_action :ensure_conversation_available!, only: %i[show read]
 
   def index
     conversations =
       Conversation
+        .excluding_blocks_for(current_user)
         .joins(:conversation_participants)
         .where(
           team_id: @team.id,
@@ -250,6 +252,14 @@ class ConversationsController < ApplicationController
       team_id: @team.id,
       status: "approved"
     )
+  end
+
+  def ensure_conversation_available!
+    return unless @conversation.blocked_for?(current_user)
+
+    render json: {
+      error: "This conversation is not available.", code: "conversation_unavailable"
+    }, status: :forbidden
   end
 
   def conversation_params

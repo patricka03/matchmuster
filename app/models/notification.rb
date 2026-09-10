@@ -1,4 +1,15 @@
 class Notification < ApplicationRecord
+  USER_CONTENT_TYPES = %w[direct_message announcement tactical_post post_created].freeze
+
+  def self.excluding_blocked_content_for(user)
+    blocked_ids = user.initiated_blocks.pluck(:blocked_user_id) + user.received_blocks.pluck(:blocker_id)
+    content = Notification.where(notification_type: USER_CONTENT_TYPES)
+    hidden = content.where(actor_id: blocked_ids).or(
+      content.where(post_id: Post.where(user_id: blocked_ids).select(:id))
+    )
+    where.not(id: hidden.select(:id))
+  end
+
   AVAILABILITY_ACTION_TYPES = %w[
     fixture_created
     availability_required
@@ -189,6 +200,11 @@ training_started
   private
 
   def deliver_native_push
+    if USER_CONTENT_TYPES.include?(notification_type)
+      authors = [actor, post&.user].compact.uniq(&:id)
+      return 0 if authors.any? { |author| Conversation.blocked_between?(first_user: user, second_user: author) }
+    end
+
     FirebasePushService.to_user(
       user: user,
       title: title,

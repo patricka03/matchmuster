@@ -4,7 +4,7 @@ class NotificationsController < ApplicationController
   before_action :set_notification, only: %i[ update destroy ]
 
   def index
-    notifications = current_user .notifications .includes(:actor, :featured_user, :team, { match: { squad_selections: :user } }, { post: :user }, { match_payment: %i[ match user ] }).newest_first .limit(100)
+    notifications = current_user.notifications.excluding_blocked_content_for(current_user).includes(:actor, :featured_user, :team, { match: { squad_selections: :user } }, { post: :user }, { match_payment: %i[ match user ] }).newest_first.limit(100)
 
     match_ids = notifications .filter_map(&:match_id).uniq
 
@@ -83,6 +83,7 @@ class NotificationsController < ApplicationController
     @notification =
       current_user
         .notifications
+        .excluding_blocked_content_for(current_user)
         .find(params[:id])
   end
 

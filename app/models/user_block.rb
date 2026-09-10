@@ -1,4 +1,6 @@
 class UserBlock < ApplicationRecord
+  attr_accessor :reported_content
+
   belongs_to :blocker,
              class_name: "User",
              inverse_of: :initiated_blocks
@@ -15,7 +17,19 @@ class UserBlock < ApplicationRecord
 
   validate :cannot_block_self
 
+  after_create :create_safety_report!
+
   private
+
+  def create_safety_report!
+    blocker.submitted_reports.create!(
+      reported_user: blocked_user,
+      reportable: reported_content,
+      reason: "other",
+      details: "The reporter blocked this member. Review the block and any attached content.",
+      content_snapshot: { "trigger" => "user_block" }
+    )
+  end
 
   def cannot_block_self
     return if blocker_id.blank? ||

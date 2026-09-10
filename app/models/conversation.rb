@@ -29,6 +29,11 @@ class Conversation < ApplicationRecord
             }
 
   class << self
+    def excluding_blocks_for(user)
+      blocked_ids = user.initiated_blocks.pluck(:blocked_user_id) + user.received_blocks.pluck(:blocker_id)
+      where.not(id: ConversationParticipant.where(user_id: blocked_ids).select(:conversation_id))
+    end
+
     def direct_between!(team:, first_user:, second_user:)
       key = [first_user.id, second_user.id].sort.join(":")
 
@@ -117,5 +122,10 @@ class Conversation < ApplicationRecord
 
   def other_participant_for(user)
     participants.where.not(id: user.id).first
+  end
+
+  def blocked_for?(user)
+    other = other_participant_for(user)
+    other.nil? || self.class.blocked_between?(first_user: user, second_user: other)
   end
 end

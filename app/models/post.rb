@@ -5,6 +5,7 @@ class Post < ApplicationRecord
   has_many :post_reads, dependent: :destroy
   has_many :readers, through: :post_reads, source: :user
   has_many :reports, as: :reportable, dependent: :nullify
+  has_many :notifications, dependent: :destroy
 
 
   POST_TYPES = %w[announcement tactical general].freeze

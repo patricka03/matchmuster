@@ -42,6 +42,51 @@ Rails.application.routes.draw do
 
   namespace :developers,
             path: "developer" do
+    get "control_center",
+        to: "control_center#show"
+
+    resources :teams,
+              only: %i[
+                index
+                show
+                create
+                update
+                destroy
+              ] do
+      member do
+        patch :regenerate_invite_code
+        patch :transfer_owner
+        post :grant_plus
+        patch :extend_plus
+        delete :revoke_plus
+        post :grant_founder
+        delete :revoke_founder
+        post :reconcile_subscription
+      end
+
+      resources :memberships,
+                only: %i[
+                  create
+                  update
+                  destroy
+                ]
+    end
+
+    resources :subscriptions,
+              only: %i[
+                index
+              ]
+
+    resources :notifications,
+              only: %i[
+                create
+              ]
+
+    resources :audit_logs,
+              only: %i[
+                index
+              ]
+
     resources :reports,
               only: %i[
                 index
@@ -60,12 +105,14 @@ Rails.application.routes.draw do
     resources :users,
               only: %i[
                 index
+                show
                 destroy
               ] do
       member do
         patch :suspend
         patch :ban
         patch :restore
+        post :send_password_reset
       end
     end
   end

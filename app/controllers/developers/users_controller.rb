@@ -14,10 +14,12 @@ module Developers
 
     before_action :set_user,
                   only: %i[
+                    show
                     suspend
                     ban
                     restore
                     destroy
+                    send_password_reset
                   ]
 
     rescue_from DeveloperAccountService::Error,
@@ -59,6 +61,74 @@ module Developers
 
         summary:
           account_summary
+      }, status: :ok
+    end
+
+    def show
+      render json: {
+        user:
+          user_json(
+            @user
+          ).merge(
+            team_memberships:
+              @user
+                .team_memberships
+                .includes(:team)
+                .map do |membership|
+                  {
+                    id:
+                      membership.id,
+                    team_id:
+                      membership.team_id,
+                    team_name:
+                      membership.team.name,
+                    role:
+                      membership.role,
+                    status:
+                      membership.status,
+                    preferred_position:
+                      membership.preferred_position
+                  }
+                end
+          )
+      }, status: :ok
+    end
+
+    def send_password_reset
+      notes =
+        account_params[
+          :notes
+        ]
+          .to_s
+          .strip
+
+      if notes.blank?
+        return render json: {
+          error:
+            "A reason is required for this account action."
+        }, status: :unprocessable_entity
+      end
+
+      @user.send_reset_password_instructions
+
+      DeveloperPlatformAudit.record!(
+        developer:
+          current_developer,
+        action_type:
+          "password_reset_sent",
+        notes:
+          notes,
+        target:
+          @user,
+        metadata: {
+          email:
+            @user.email
+        }
+      )
+
+      render json: {
+        message:
+          "Password reset instructions sent."
       }, status: :ok
     end
 

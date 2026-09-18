@@ -98,6 +98,16 @@ module Developers
 
       team.reload
 
+      DeveloperPlatformAudit.record!(
+        developer: current_developer,
+        action_type: "launch_club_granted",
+        notes: "Founder Club status granted from Launch Clubs.",
+        target: team,
+        metadata: {
+          launch_club_since: team.launch_club_since
+        }
+      )
+
       render json: {
         message:
           "Launch Club granted successfully.",

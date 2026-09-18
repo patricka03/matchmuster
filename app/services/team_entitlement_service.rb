@@ -45,6 +45,107 @@ class TeamEntitlementService
       entitlement
     end
 
+
+def grant_admin_plus!(
+  team:,
+  days:,
+  starts_at: Time.current
+)
+  days = Integer(days)
+
+  unless days.between?(1, 3_650)
+    raise ArgumentError,
+          "Admin Plus duration must be between 1 and 3650 days"
+  end
+
+  current_entitlement = team.team_entitlement
+
+  if current_entitlement&.paid? &&
+     current_entitlement.plus_active?
+    raise ArgumentError,
+          "Paid Apple/Google subscriptions cannot be overwritten by an admin entitlement"
+  end
+
+  entitlement = entitlement_for(team)
+
+  entitlement.assign_attributes(
+    plan: "plus",
+    status: "complimentary",
+    source: "admin",
+    starts_at: starts_at,
+    ends_at: starts_at + days.days,
+    provider: nil,
+    provider_subscription_id: nil,
+    billing_period: nil,
+    provider_product_id: nil,
+    provider_base_plan_id: nil,
+    auto_renews: false
+  )
+
+  entitlement.save!
+  entitlement
+end
+
+def extend_complimentary_plus!(
+  team:,
+  days:
+)
+  days = Integer(days)
+
+  unless days.between?(1, 3_650)
+    raise ArgumentError,
+          "Plus extension must be between 1 and 3650 days"
+  end
+
+  entitlement = team.team_entitlement
+
+  unless entitlement &&
+         !entitlement.paid? &&
+         %w[founder admin standard_trial].include?(entitlement.source)
+    raise ArgumentError,
+          "Only trial or complimentary Plus can be extended manually"
+  end
+
+  extension_start =
+    [
+      entitlement.ends_at,
+      Time.current
+    ].compact.max
+
+  entitlement.update!(
+    plan: "plus",
+    status:
+      entitlement.source == "standard_trial" ?
+        "trialing" :
+        "complimentary",
+    ends_at:
+      extension_start + days.days,
+    auto_renews: false
+  )
+
+  entitlement
+end
+
+def revoke_complimentary_plus!(team:)
+  entitlement = team.team_entitlement
+
+  return nil unless entitlement
+
+  if entitlement.paid?
+    raise ArgumentError,
+          "Paid Apple/Google subscriptions must be managed by the store"
+  end
+
+  entitlement.update!(
+    plan: "free",
+    status: "expired",
+    ends_at: Time.current,
+    auto_renews: false
+  )
+
+  entitlement
+end
+
     def activate_paid_plus!(
       team:,
       provider:,

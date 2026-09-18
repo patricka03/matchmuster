@@ -3,6 +3,9 @@ class Developer < ApplicationRecord
 
   has_many :reviewed_reports, class_name: "Report", foreign_key: :reviewed_by_id, inverse_of: :reviewed_by, dependent: :nullify
   has_many :moderation_actions, dependent: :nullify
+  has_many :platform_actions,
+           class_name: "DeveloperPlatformAction",
+           dependent: :destroy
   devise :database_authenticatable, :recoverable, :rememberable, :validatable, :jwt_authenticatable, jwt_revocation_strategy: self
 
   self.skip_session_storage = [ :http_auth, :params_auth, :jwt ]

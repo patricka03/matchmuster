@@ -46,6 +46,16 @@ module Developers
         }, status: :unprocessable_entity
       end
 
+      DeveloperPlatformAudit.record!(
+        developer: current_developer,
+        action_type: "manager_rejected",
+        notes: "Manager application rejected.",
+        target: @manager,
+        metadata: {
+          manager_email: @manager.email
+        }
+      )
+
       begin
         @manager.destroy!
       rescue ActiveRecord::RecordNotDestroyed,
@@ -89,6 +99,16 @@ module Developers
       end
 
       if @manager.update(manager_verification_status: new_status)
+        DeveloperPlatformAudit.record!(
+          developer: current_developer,
+          action_type: "manager_approved",
+          notes: "Manager application approved.",
+          target: @manager,
+          metadata: {
+            manager_email: @manager.email
+          }
+        )
+
         render json: {
           message: "Manager application #{new_status} successfully",
           manager: manager_json(@manager)

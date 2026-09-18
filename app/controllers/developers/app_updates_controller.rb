@@ -15,6 +15,16 @@ module Developers
         message: message
       )
 
+      DeveloperPlatformAudit.record!(
+        developer: current_developer,
+        action_type: "app_update_sent",
+        notes: "Legacy approved-manager app update sent.",
+        metadata: {
+          title: title,
+          recipient_count: recipient_count
+        }
+      )
+
       render json: {
         message: "App update sent successfully",
         app_update: {

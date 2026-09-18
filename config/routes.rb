@@ -107,6 +107,9 @@ Rails.application.routes.draw do
   post "auth/social",
        to: "social_auth#create"
 
+  post "auth/apple/android/callback",
+       to: "apple_android_auth#callback"
+
 
   # ========================================
   # PUSH DEVICES

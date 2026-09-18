@@ -9,6 +9,16 @@ class SocialIdentityVerifier
   APPLE_ISSUER = "https://appleid.apple.com".freeze
   APPLE_JWKS_URL = "https://appleid.apple.com/auth/keys".freeze
 
+  DEFAULT_GOOGLE_AUDIENCES = [
+    "847249809330-ic3djuivnsg44um6dkk9ccj3nj5i7fqr.apps.googleusercontent.com",
+    "847249809330-sia28lousqrl4kg4e0tou9i9tsfcrqm6.apps.googleusercontent.com"
+  ].freeze
+
+  DEFAULT_APPLE_AUDIENCES = [
+    "uk.matchmuster.mobile",
+    "uk.matchmuster.mobile.service"
+  ].freeze
+
   class << self
     def call(provider:, id_token:)
       provider = provider.to_s.downcase.strip
@@ -35,14 +45,18 @@ class SocialIdentityVerifier
 
     def verify_google(id_token)
       audiences =
-        ENV
-          .fetch(
-            "GOOGLE_OAUTH_CLIENT_IDS",
-            ""
-          )
-          .split(",")
+        (
+          ENV
+            .fetch(
+              "GOOGLE_OAUTH_CLIENT_IDS",
+              ""
+            )
+            .split(",") +
+          DEFAULT_GOOGLE_AUDIENCES
+        )
           .map(&:strip)
           .reject(&:blank?)
+          .uniq
 
       if audiences.empty?
         raise VerificationError,
@@ -77,29 +91,59 @@ class SocialIdentityVerifier
     end
 
     def verify_apple(id_token)
-      client_id =
-        ENV.fetch(
-          "APPLE_SIGN_IN_CLIENT_ID",
-          "uk.matchmuster.mobile"
+      audiences =
+        (
+          ENV
+            .fetch(
+              "APPLE_SIGN_IN_CLIENT_IDS",
+              ""
+            )
+            .split(",") +
+          [
+            ENV["APPLE_SIGN_IN_CLIENT_ID"],
+            ENV["APPLE_ANDROID_SERVICE_ID"]
+          ] +
+          DEFAULT_APPLE_AUDIENCES
         )
+          .map { |value| value.to_s.strip }
+          .reject(&:blank?)
+          .uniq
 
       jwks =
         JWT::JWK::Set.new(
           apple_jwks
         )
 
-      payload, =
-        JWT.decode(
-          id_token,
-          nil,
-          true,
-          algorithms: ["RS256"],
-          jwks: jwks,
-          verify_iss: true,
-          iss: APPLE_ISSUER,
-          verify_aud: true,
-          aud: client_id
-        )
+      payload = nil
+      last_error = nil
+
+      audiences.each do |audience|
+        begin
+          payload, =
+            JWT.decode(
+              id_token,
+              nil,
+              true,
+              algorithms: ["RS256"],
+              jwks: jwks,
+              verify_iss: true,
+              iss: APPLE_ISSUER,
+              verify_aud: true,
+              aud: audience
+            )
+
+          break
+        rescue JWT::DecodeError => error
+          last_error = error
+        end
+      end
+
+      unless payload
+        raise last_error ||
+              VerificationError.new(
+                "Apple token audience did not match."
+              )
+      end
 
       ensure_verified_email!(payload) if payload["email"].present?
       normalized_payload("apple", payload)

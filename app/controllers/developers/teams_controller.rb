@@ -623,7 +623,7 @@ module Developers
     def action_params
       params
         .fetch(
-          :action,
+          :developer_action,
           {}
         )
         .permit(
